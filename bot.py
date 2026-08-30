@@ -868,6 +868,9 @@ async def wait_for_visuals(message):
 
 
 async def analyse_visual_attachments(message, caption):
+    # If Ollama isn't reachable, skip vision analysis entirely
+    if _ollama_was_down or not _ollama_ping():
+        return "[Image attached; vision analysis is only available when running locally with Ollama.]"
     message = await wait_for_visuals(message)
     sources = collect_visual_sources(message)
     if not sources:
@@ -912,7 +915,50 @@ def is_voice_attachment(attachment):
 
 
 def transcribe_voice(audio_bytes, filename):
-    """Transcribe locally; the model is loaded once and reused."""
+    """
+    Transcribe audio. Uses Groq Whisper API if available (works on any server),
+    falls back to local faster-whisper if installed, otherwise raises RuntimeError.
+    """
+    # Try Groq Whisper first — works on hosted servers with no local model needed
+    if GROQ_API_KEY:
+        try:
+            suffix = Path(filename or "voice.ogg").suffix or ".ogg"
+            fd, audio_path = tempfile.mkstemp(suffix=suffix)
+            try:
+                with os.fdopen(fd, "wb") as f:
+                    f.write(audio_bytes)
+                import urllib.request
+                boundary = "----FormBoundary7MA4YWxkTrZu0gW"
+                with open(audio_path, "rb") as audio_file:
+                    audio_data = audio_file.read()
+                body = (
+                    f"--{boundary}\r\n"
+                    f"Content-Disposition: form-data; name=\"file\"; filename=\"audio{suffix}\"\r\n"
+                    f"Content-Type: audio/ogg\r\n\r\n"
+                ).encode() + audio_data + (
+                    f"\r\n--{boundary}\r\n"
+                    f"Content-Disposition: form-data; name=\"model\"\r\n\r\n"
+                    f"whisper-large-v3-turbo\r\n"
+                    f"--{boundary}--\r\n"
+                ).encode()
+                req = urllib.request.Request(
+                    "https://api.groq.com/openai/v1/audio/transcriptions",
+                    data=body,
+                    headers={
+                        "Authorization": f"Bearer {GROQ_API_KEY}",
+                        "Content-Type": f"multipart/form-data; boundary={boundary}",
+                    },
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    result = json.loads(resp.read().decode("utf-8"))
+                    return result.get("text", "").strip()
+            finally:
+                Path(audio_path).unlink(missing_ok=True)
+        except Exception as e:
+            print(f"[Voice] Groq transcription failed: {e} — trying local fallback")
+
+    # Local faster-whisper fallback (works when running on PC)
     global voice_transcriber
     try:
         from faster_whisper import WhisperModel
@@ -946,13 +992,15 @@ async def answer_voice_message(message):
         transcript = await asyncio.to_thread(transcribe_voice, audio_bytes, attachment.filename)
     except RuntimeError:
         await message.reply(
-            "Voice replies need one free local install first: run `py -m pip install faster-whisper`, then restart me.",
+            "I can't transcribe voice messages right now — Groq key missing and faster-whisper not installed.",
             mention_author=False,
         )
+        print(f"[Reply sent] Text to {message.author.display_name}")
         return True
     except Exception as error:
-        print(f"Local voice transcription failed: {error}")
-        await message.reply("I couldn't transcribe that voice message locally. Try sending a shorter, clearer recording.", mention_author=False)
+        print(f"Voice transcription failed: {error}")
+        await message.reply("I couldn't transcribe that voice message. Try again in a sec.", mention_author=False)
+        print(f"[Reply sent] Text to {message.author.display_name}")
         return True
     if not transcript:
         await message.reply("I couldn't hear clear speech in that voice message.", mention_author=False)
@@ -1477,10 +1525,9 @@ async def _answer_with_ai_inner(message, stripped_content):
             else "Reply briefly to the message above."
         )
     if image_description:
-        if "not installed yet" in image_description:
+        if "not installed yet" in image_description or "only available when running locally" in image_description:
             await message.reply(
-                f"I can see the attachment, but my local vision model is not installed yet. "
-                f"Run `ollama pull {OLLAMA_VISION_MODEL}`, then restart me.",
+                "I can see you sent an image but I can't analyse it right now — image analysis needs Ollama running locally. I can still chat though!",
                 mention_author=False,
             )
             print(f"[Reply sent] Text to {message.author.display_name}")
