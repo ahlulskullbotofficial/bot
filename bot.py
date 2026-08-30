@@ -1662,11 +1662,11 @@ async def answer_with_ai(message):
     user_lock = _user_ai_locks[message.author.id]
     if user_lock.locked():
         return  # user already has a reply in flight
-    # Sequential spam guard — check how long since last reply
+    # Sequential spam guard — only throttle if a reply was recently SENT
     user_state = brain.get_user_state(message.author.id)
-    last_seen = user_state.get("last_seen")
-    if last_seen and isinstance(last_seen, datetime):
-        elapsed = (datetime.now(timezone.utc) - last_seen).total_seconds()
+    last_reply = user_state.get("last_reply_sent")
+    if last_reply and isinstance(last_reply, datetime):
+        elapsed = (datetime.now(timezone.utc) - last_reply).total_seconds()
         if elapsed < 2.0:
             return  # too fast, drop silently
     async with user_lock:
@@ -1810,6 +1810,7 @@ async def _answer_with_ai_inner(message, stripped_content):
             print(f"[Reply sent] Text to {message.author.display_name}")
             return
     await message.reply(_strip_action_tags(reply), mention_author=False)
+    brain.update_user_state(message.author.id, last_reply_sent=datetime.now(timezone.utc))
     print(f"[Reply sent] Text to {message.author.display_name}")
 
 
