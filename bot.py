@@ -51,8 +51,8 @@ OLLAMA_MODEL = "llama3.2:3b"
 GROQ_API_KEY  = os.environ.get("GROQ_API_KEY", "")
 GROQ_API_KEY_2 = os.environ.get("GROQ_API_KEY_2", "")
 GROQ_API_KEY_3 = os.environ.get("GROQ_API_KEY_3", "")
-GROQ_MODEL    = "llama-3.3-70b-versatile"  # best free Groq model
-GROQ_URL      = "https://api.groq.com/openai/v1/chat/completions"# llama3.2-vision:11b cannot load on current Ollama (unknown mllama architecture).
+GROQ_MODEL    = "llama-3.3-70b-versatile"
+GROQ_URL      = "https://api.groq.com/openai/v1/chat/completions"
 # Prefer Qwen2.5-VL; fall back to moondream only if nothing else is installed.
 PREFERRED_VISION_MODELS = (
     "qwen2.5vl:3b",
@@ -2132,7 +2132,8 @@ async def groq_health_check_error(error):
 async def on_ready():
     global bot_loop, console_started, slash_commands_synced, OLLAMA_VISION_MODEL
     bot_loop = asyncio.get_running_loop()
-    print(f"Bot is online as {bot.user}")
+    key_status = f"GROQ key: {'set (' + GROQ_API_KEY[:8] + '...)' if GROQ_API_KEY else 'NOT SET'}"
+    print(f"Bot is online as {bot.user} | {key_status}")
     # Resolve vision model in background so on_ready doesn't block
     async def _resolve_vision_async():
         global OLLAMA_VISION_MODEL
