@@ -771,6 +771,8 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
             # Fall through to Ollama below
 
     # Ollama fallback
+    if _ollama_was_down:
+        raise RuntimeError("Both Groq and Ollama are unavailable")
     payload = json.dumps({
         "model": OLLAMA_MODEL,
         "messages": messages,
@@ -783,8 +785,11 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=60) as response:
-        return json.loads(response.read().decode("utf-8"))["message"]["content"].strip()
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            return json.loads(response.read().decode("utf-8"))["message"]["content"].strip()
+    except urllib.error.URLError:
+        raise RuntimeError("Both Groq and Ollama are unavailable")
 
 
 def make_ai_reply(history, user_message, member_context, visual=False, user_id=None):
