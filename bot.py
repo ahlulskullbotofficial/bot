@@ -1020,9 +1020,7 @@ async def wait_for_visuals(message):
 
 
 async def analyse_visual_attachments(message, caption):
-    # If Ollama isn't reachable, skip vision analysis entirely — use to_thread so we don't block the event loop
-    if _ollama_was_down or not await asyncio.to_thread(_ollama_ping):
-        return "[Image attached; vision analysis is only available when running locally with Ollama.]"
+    # Check for visual sources first — if there are none, return early without pinging Ollama
     message = await wait_for_visuals(message)
     sources = collect_visual_sources(message)
     if not sources:
@@ -1031,7 +1029,11 @@ async def analyse_visual_attachments(message, caption):
             replied = await wait_for_visuals(replied)
             sources = collect_visual_sources(replied)
     if not sources:
-        return ""
+        return ""  # no image — skip everything
+
+    # There IS an image — now check if Ollama can handle it
+    if _ollama_was_down or not await asyncio.to_thread(_ollama_ping):
+        return "[Image attached; vision analysis is only available when running locally with Ollama.]"
     last_failure = "[Image attached; it could not be analysed locally.]"
     for source_type, source in sources[:4]:
         try:
