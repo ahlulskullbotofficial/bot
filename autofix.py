@@ -462,7 +462,7 @@ def run():
                 kill_reason = result[0]
                 log(f"[AutoFix] Behaviour trigger '{kill_reason}' — will fix after output drains.")
                 # Kill immediately for hard errors and silent failures
-                if kill_reason in {"traceback", "name_error", "syntax_error",
+                if kill_reason in {"name_error", "syntax_error",
                                     "import_error", "attribute_error", "type_error",
                                     "silent_failure"}:
                     if proc.poll() is None:
