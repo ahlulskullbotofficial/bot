@@ -47,10 +47,12 @@ BOT_REACTION = "\U0001f480"
 OLLAMA_MODEL = "llama3.2:3b"
 # Groq — loaded from .env. When set, all AI text replies use Groq instead of
 # Ollama so the bot can run 24/7 on a server without a local GPU.
-# Sign up free (no card) at console.groq.com
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
-GROQ_MODEL   = "llama-3.3-70b-versatile"  # best free Groq model
-GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"# llama3.2-vision:11b cannot load on current Ollama (unknown mllama architecture).
+# You can add GROQ_API_KEY_2, GROQ_API_KEY_3 etc. for automatic rotation.
+GROQ_API_KEY  = os.environ.get("GROQ_API_KEY", "")
+GROQ_API_KEY_2 = os.environ.get("GROQ_API_KEY_2", "")
+GROQ_API_KEY_3 = os.environ.get("GROQ_API_KEY_3", "")
+GROQ_MODEL    = "llama-3.3-70b-versatile"  # best free Groq model
+GROQ_URL      = "https://api.groq.com/openai/v1/chat/completions"# llama3.2-vision:11b cannot load on current Ollama (unknown mllama architecture).
 # Prefer Qwen2.5-VL; fall back to moondream only if nothing else is installed.
 PREFERRED_VISION_MODELS = (
     "qwen2.5vl:3b",
@@ -106,9 +108,18 @@ class BotBrain:
         # --- Vision model cache ---
         self.vision_model: str = ""  # set once Ollama is available
 
-        # --- Groq usage tracking (rough estimate for quota awareness) ---
-        self.groq_requests_today: int = 0
-        self.groq_request_date: str = ""
+        # --- Groq key rotation ---
+        self.groq_keys: list = [k for k in [
+            os.environ.get("GROQ_API_KEY", ""),
+            os.environ.get("GROQ_API_KEY_2", ""),
+            os.environ.get("GROQ_API_KEY_3", ""),
+        ] if k]
+        self.groq_key_index: int = 0
+        self.groq_dead_keys: set = set()
+        self.groq_key_dead: bool = False  # True when current key is invalid
+
+        # --- Alert tracking (don't spam the same alert) ---
+        self.alerted: set = set()   # set of alert IDs already sent
 
     def log_event(self, system: str, event: str, user_id=None):
         entry = {
@@ -170,6 +181,38 @@ class BotBrain:
 
     def resolve_issue(self, issue_fragment: str):
         self.known_issues = [i for i in self.known_issues if issue_fragment not in i]
+
+    def active_groq_key(self) -> str:
+        """Return the currently active Groq key, skipping dead ones."""
+        if not self.groq_keys:
+            return GROQ_API_KEY  # fallback to global
+        live = [k for k in self.groq_keys if k not in self.groq_dead_keys]
+        if not live:
+            return ""  # all keys dead
+        # Use round-robin index mod live list
+        self.groq_key_index = self.groq_key_index % len(live)
+        return live[self.groq_key_index]
+
+    def mark_groq_key_dead(self, key: str):
+        """Mark a key as invalid (401/403) and rotate to the next one."""
+        self.groq_dead_keys.add(key)
+        live = [k for k in self.groq_keys if k not in self.groq_dead_keys]
+        if live:
+            self.groq_key_index = 0
+            print(f"[Brain] Groq key rotated — {len(live)} key(s) remaining")
+            self.groq_alive = True
+            self.resolve_issue("Groq")
+        else:
+            print("[Brain] ALL Groq keys are dead — no AI available")
+            self.groq_alive = False
+            self.add_known_issue("All Groq keys expired — update GROQ_API_KEY in env vars")
+
+    def should_alert(self, alert_id: str) -> bool:
+        """Return True if this alert hasn't been sent yet (prevents spam)."""
+        if alert_id in self.alerted:
+            return False
+        self.alerted.add(alert_id)
+        return True
 
 
 # Global brain instance — imported and used by all subsystems
@@ -759,19 +802,26 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
                 body = e.read().decode("utf-8", errors="ignore")[:200]
             except Exception:
                 pass
-            print(f"[AI] Groq error {e.code}: {body} — falling back to Ollama")
+            print(f"[AI] Groq error {e.code}: {body}")
             brain.groq_alive = False
             brain.log_event("groq", f"error_{e.code}")
+            if e.code in (401, 403):
+                brain.add_known_issue(f"GROQ KEY INVALID (HTTP {e.code}) — go to console.groq.com and create a new key, then update GROQ_API_KEY in bot-hosting.net Env tab")
+                brain.groq_key_dead = True
+                # Raise a specific exception so callers can show a useful message
+                raise RuntimeError(f"GROQ_KEY_INVALID:{e.code}")
             brain.add_known_issue(f"Groq HTTP {e.code}")
-            # Fall through to Ollama below
+            # Other HTTP errors — fall through to Ollama
+        except RuntimeError:
+            raise  # re-raise our own errors (GROQ_KEY_INVALID etc.)
         except Exception as e:
-            print(f"[AI] Groq failed ({type(e).__name__}: {e}) — falling back to Ollama")
+            print(f"[AI] Groq failed ({type(e).__name__}: {e})")
             brain.groq_alive = False
             brain.log_event("groq", f"failed_{type(e).__name__}")
             # Fall through to Ollama below
 
-    # Ollama fallback
-    if _ollama_was_down:
+    # Ollama fallback — only try if it's actually reachable
+    if not _ollama_ping():
         raise RuntimeError("Both Groq and Ollama are unavailable")
     payload = json.dumps({
         "model": OLLAMA_MODEL,
@@ -1835,6 +1885,16 @@ async def _answer_with_ai_inner(message, stripped_content):
         print(f"[AI] Request failed: {type(error).__name__}: {error}")
         traceback.print_exc()
         brain.log_event("ai", f"reply_failed_{type(error).__name__}", user_id=message.author.id)
+        # Groq key invalid — tell the user and alert the owner
+        if "GROQ_KEY_INVALID" in str(error):
+            await message.reply(
+                "My AI brain is offline right now — the API key needs updating. "
+                "I'll be back as soon as it's fixed. Sorry fam!",
+                mention_author=False,
+            )
+            print("[ALERT] GROQ KEY INVALID — update GROQ_API_KEY in bot-hosting.net Env tab")
+            print("[ALERT] Get new key at: console.groq.com")
+            return
         brain.add_known_issue(f"AI reply failed: {type(error).__name__}")
         if not _ollama_was_down:
             asyncio.get_running_loop().run_in_executor(None, _try_start_ollama)
@@ -2009,6 +2069,65 @@ async def ollama_health_check_error(error):
     traceback.print_exc()
 
 
+# --- Owner ID — set this to your Discord user ID to receive DM alerts ---
+# Get your ID: enable Developer Mode in Discord → right-click your name → Copy ID
+BOT_OWNER_ID = int(os.environ.get("BOT_OWNER_ID", "0"))
+
+
+@tasks.loop(minutes=10)
+async def groq_health_check():
+    """Every 10 minutes verify Groq is reachable. DM the owner if the key dies."""
+    if not GROQ_API_KEY:
+        return
+    try:
+        payload = json.dumps({
+            "model": GROQ_MODEL,
+            "messages": [{"role": "user", "content": "hi"}],
+            "max_tokens": 1,
+            "temperature": 0.0,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            GROQ_URL, data=payload,
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {GROQ_API_KEY}"},
+            method="POST",
+        )
+        await asyncio.to_thread(lambda: urllib.request.urlopen(req, timeout=10).read())
+        if not brain.groq_alive:
+            print("[Groq] Back online.")
+            brain.groq_alive = True
+            brain.groq_key_dead = False
+            brain.resolve_issue("Groq")
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            brain.groq_alive = False
+            brain.groq_key_dead = True
+            msg = (
+                "**[BOT ALERT] Groq API key is INVALID**\n"
+                f"Error: HTTP {e.code}\n\n"
+                "**To fix:**\n"
+                "1. Go to <https://console.groq.com> -> API Keys -> Create new key\n"
+                "2. Go to bot-hosting.net -> your deployment -> Env tab\n"
+                "3. Update `GROQ_API_KEY` with the new key\n"
+                "4. Restart the deployment\n\n"
+                "Bot cannot reply to anyone until this is fixed."
+            )
+            print(f"[GROQ ALERT] Key invalid (HTTP {e.code})")
+            if BOT_OWNER_ID and brain.should_alert("groq_key_dead"):
+                try:
+                    owner = await bot.fetch_user(BOT_OWNER_ID)
+                    await owner.send(msg)
+                    print(f"[GROQ ALERT] DM sent to owner {BOT_OWNER_ID}")
+                except Exception as dm_err:
+                    print(f"[GROQ ALERT] Could not DM owner: {dm_err}")
+    except Exception:
+        pass
+
+
+@groq_health_check.error
+async def groq_health_check_error(error):
+    print(f"[Groq health] Task error: {error}")
+
+
 @bot.event
 async def on_ready():
     global bot_loop, console_started, slash_commands_synced, OLLAMA_VISION_MODEL
@@ -2028,6 +2147,8 @@ async def on_ready():
         deliver_scheduled_messages.start()
     if not ollama_health_check.is_running():
         ollama_health_check.start()
+    if not groq_health_check.is_running():
+        groq_health_check.start()
     if not slash_commands_synced:
         try:
             # Only sync if command schema has changed — avoids hitting rate limits on every restart
