@@ -36,28 +36,38 @@ def log(msg):
 
 def acquire_pid_lock():
     """
-    Write our PID to .watchdog.pid. If the file already exists and the
-    recorded PID is still alive, exit immediately — another watchdog is
-    already running. Prevents two watchdog instances from both launching
-    autofix.py (which would double-start bot.py and cause dual-token Discord connections).
+    Write our PID to .watchdog.pid. If another watchdog is already running,
+    exit immediately to prevent dual bot instances.
+    Uses subprocess-based check which works on both Windows and Linux.
     """
     if PID_FILE.exists():
         try:
             existing_pid = int(PID_FILE.read_text().strip())
-            # Check if that process is still alive
-            import psutil
-            if psutil.pid_exists(existing_pid):
-                print(f"[Watchdog] Another watchdog is already running (PID {existing_pid}). Exiting.")
-                sys.exit(0)
-        except (ValueError, ImportError, Exception):
-            # psutil not available — fall back to os.kill check
+            # Cross-platform alive check via subprocess
             try:
-                existing_pid = int(PID_FILE.read_text().strip())
-                os.kill(existing_pid, 0)  # signal 0 = check existence
-                print(f"[Watchdog] Another watchdog is already running (PID {existing_pid}). Exiting.")
-                sys.exit(0)
-            except (ValueError, OSError):
-                pass  # PID file stale — safe to overwrite
+                import psutil
+                if psutil.pid_exists(existing_pid):
+                    print(f"[Watchdog] Another watchdog is already running (PID {existing_pid}). Exiting.")
+                    sys.exit(0)
+            except ImportError:
+                # psutil not available — use platform-appropriate check
+                import platform
+                if platform.system() == "Windows":
+                    import subprocess as _sp
+                    result = _sp.run(
+                        ["tasklist", "/FI", f"PID eq {existing_pid}"],
+                        capture_output=True, text=True
+                    )
+                    if str(existing_pid) in result.stdout:
+                        print(f"[Watchdog] Another watchdog already running (PID {existing_pid}). Exiting.")
+                        sys.exit(0)
+                else:
+                    # Unix: /proc filesystem check (no signals, no kill)
+                    if Path(f"/proc/{existing_pid}").exists():
+                        print(f"[Watchdog] Another watchdog already running (PID {existing_pid}). Exiting.")
+                        sys.exit(0)
+        except (ValueError, Exception):
+            pass  # stale or unreadable PID file — overwrite it
     PID_FILE.write_text(str(os.getpid()))
 
 

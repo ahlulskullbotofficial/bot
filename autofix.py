@@ -25,6 +25,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -33,14 +34,32 @@ BOT_FILE            = Path(__file__).with_name("bot.py")
 BACKUP_DIR          = Path(__file__).with_name(".autofix_backups")
 LOG_FILE            = Path(__file__).with_name("autofix_log.txt")
 RELOAD_FLAG         = Path(__file__).with_name(".reload_now")
+ENV_FILE            = Path(__file__).with_name(".env")
 OLLAMA_URL          = "http://127.0.0.1:11434/api/chat"
 CODER_MODEL         = "qwen2.5-coder:7b"
 FALLBACK_MODEL      = "llama3.2:3b"
+GROQ_URL            = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_CODER_MODEL    = "llama-3.3-70b-versatile"   # best free model for code repair
 STABILITY_SECS      = 45
 MAX_FIX_ATTEMPTS    = 3
 FILE_WATCH_INTERVAL = 2
-# How many times the same error pattern must appear before triggering a fix
 REPEAT_THRESHOLD    = 3
+
+
+def _load_groq_key():
+    """Read GROQ_API_KEY from .env — available even without loading bot.py."""
+    import os
+    key = os.environ.get("GROQ_API_KEY", "")
+    if key:
+        return key
+    try:
+        for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith("GROQ_API_KEY="):
+                return line.split("=", 1)[1].strip()
+    except Exception:
+        pass
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -124,17 +143,47 @@ def model_present(name):
 
 
 def best_model():
-    if model_present(CODER_MODEL):
-        return CODER_MODEL
-    if model_present(FALLBACK_MODEL):
-        log(f"[AutoFix] {CODER_MODEL} not available, using {FALLBACK_MODEL}")
-        return FALLBACK_MODEL
+    """Return the best available coding model — local Ollama first, Groq fallback."""
+    if ollama_alive():
+        if model_present(CODER_MODEL):
+            return ("ollama", CODER_MODEL)
+        if model_present(FALLBACK_MODEL):
+            log(f"[AutoFix] {CODER_MODEL} not available, using {FALLBACK_MODEL}")
+            return ("ollama", FALLBACK_MODEL)
+    groq_key = _load_groq_key()
+    if groq_key:
+        log(f"[AutoFix] Ollama not available, using Groq ({GROQ_CODER_MODEL}) for code repair")
+        return ("groq", groq_key)
     return None
 
 
-def ask_ai(model, prompt):
+def ask_ai(model_info, prompt):
+    """Send a prompt to the best available AI and return the response."""
+    if model_info is None:
+        return ""
+    backend, model_or_key = model_info
+
+    if backend == "groq":
+        payload = json.dumps({
+            "model": GROQ_CODER_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 1000,
+            "temperature": 0.05,
+        }).encode()
+        req = urllib.request.Request(
+            GROQ_URL, data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {model_or_key}",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            return json.loads(resp.read())["choices"][0]["message"]["content"].strip()
+
+    # Ollama backend
     payload = json.dumps({
-        "model": model,
+        "model": model_or_key,
         "messages": [{"role": "user", "content": prompt}],
         "stream": False,
         "options": {"num_predict": 1000, "temperature": 0.05},
@@ -380,28 +429,23 @@ def watch_files(proc_ref, stop_event):
 # ---------------------------------------------------------------------------
 
 def attempt_fix(label, trigger_lines, recent_output, fix_attempt):
-    """
-    Try to fix a detected problem.
-    Returns True if a patch was applied.
-    """
     log(f"[AutoFix] Problem detected: '{label}' (attempt {fix_attempt}/{MAX_FIX_ATTEMPTS})")
 
-    if not ollama_alive():
-        log("[AutoFix] Ollama not reachable — skipping AI fix.")
+    model_info = best_model()
+    if not model_info:
+        log("[AutoFix] No AI model available (no Ollama + no Groq key) — skipping fix.")
         return False
 
-    model = best_model()
-    if not model:
-        log("[AutoFix] No coding model available.")
-        return False
+    backend, _ = model_info
+    log(f"[AutoFix] Using {backend.upper()} for code repair")
 
     backup = backup_bot()
     log(f"[AutoFix] Backed up to {backup.name}")
 
     prompt = build_fix_prompt(label, trigger_lines, recent_output)
     try:
-        log(f"[AutoFix] Sending problem to {model}...")
-        response = ask_ai(model, prompt)
+        log(f"[AutoFix] Sending problem to AI...")
+        response = ask_ai(model_info, prompt)
     except Exception as e:
         log(f"[AutoFix] AI request failed: {e}")
         return False
@@ -428,7 +472,13 @@ def run():
     log("=" * 60)
     log("AutoFix watchdog started")
     log(f"Bot     : {BOT_FILE}")
-    log(f"AI model: {CODER_MODEL} (fallback: {FALLBACK_MODEL})")
+    groq_key = _load_groq_key()
+    if ollama_alive():
+        log(f"AI model: {CODER_MODEL} (Ollama local)")
+    elif groq_key:
+        log(f"AI model: {GROQ_CODER_MODEL} (Groq cloud fallback)")
+    else:
+        log("AI model: NONE — no Ollama and no GROQ_API_KEY. Auto-fix disabled.")
     log(f"Watching: crashes + {len(BEHAVIOUR_PATTERNS)} behaviour patterns")
     log("=" * 60)
 

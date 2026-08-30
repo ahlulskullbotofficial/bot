@@ -70,9 +70,7 @@ ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = "9BWtsMINqrJLrRacOk9x"
 ELEVENLABS_MODEL = "eleven_multilingual_v2"
 
-# Runtime flag — flips to True when ElevenLabs quota is exhausted.
-# Resets automatically at the start of each calendar month (UTC).
-_elevenlabs_quota_exhausted = False
+# ElevenLabs monthly quota reset tracking (month number when quota was exhausted)
 _elevenlabs_quota_reset_month = None
 
 # ============================================================================
@@ -102,7 +100,10 @@ class BotBrain:
         self.known_issues: list = []
 
         # --- Quiz awareness ---
-        self.active_quiz_channels: set = set()  # channel_ids with active quiz
+        self.active_quiz_channels: set = set()
+
+        # --- Vision model cache ---
+        self.vision_model: str = ""  # set once Ollama is available
 
         # --- Groq usage tracking (rough estimate for quota awareness) ---
         self.groq_requests_today: int = 0
@@ -622,7 +623,6 @@ def member_memory_context(user_id, guild_id, display_name):
         identity += f" They have sent {msg_count} messages to the bot."
     if not rows:
         return identity + " No personal facts saved yet for this member."
-        return identity + " No personal facts saved yet for this member."
     # Group facts by key, deduplicate values
     grouped = {}
     for _, key, value in rows:
@@ -795,11 +795,12 @@ def make_ai_reply(history, user_message, member_context, visual=False, user_id=N
     if status != "All systems nominal":
         system_parts.append(f"[System status: {status}]")
 
-    # Inject quiz context if user is in an active quiz channel
-    if user_id and hasattr(brain, "active_quiz_channels"):
-        # We can't easily check channel here, so this is handled at call site
-
-        pass
+    # Inject user mood/context from brain if available
+    if user_id:
+        user_state = brain.get_user_state(user_id)
+        mood = user_state.get("mood", "neutral")
+        if mood and mood != "neutral":
+            system_parts.append(f"[User current mood detected: {mood}. Adjust tone accordingly.]")
 
     messages = [
         {"role": "system", "content": "\n\n".join(system_parts)}
@@ -820,19 +821,22 @@ def make_ai_reply(history, user_message, member_context, visual=False, user_id=N
         raise
 
 
-def list_ollama_models():
+def list_ollama_models(silent=False):
     try:
         request = urllib.request.Request(OLLAMA_TAGS_URL, method="GET")
         with urllib.request.urlopen(request, timeout=10) as response:
             payload = json.loads(response.read().decode("utf-8"))
         return [model.get("name", "") for model in payload.get("models", [])]
     except Exception as error:
-        print(f"Could not list Ollama models: {error}")
+        if not silent:
+            print(f"Could not list Ollama models: {error}")
         return []
 
 
 def resolve_vision_model():
-    installed = list_ollama_models()
+    # Silence Ollama warnings when running on a Groq-only server
+    silent = bool(GROQ_API_KEY) and not brain.ollama_alive
+    installed = list_ollama_models(silent=silent)
     names = set(installed)
     for candidate in PREFERRED_VISION_MODELS:
         if candidate in names:
@@ -874,7 +878,12 @@ def prepare_vision_jpeg(image_bytes):
 def describe_image(image_bytes, caption):
     """Use a local vision model to make a factual description for the chat."""
     global OLLAMA_VISION_MODEL
-    OLLAMA_VISION_MODEL = resolve_vision_model()
+    # Use cached model from brain if available, only re-resolve if needed
+    if brain.vision_model:
+        OLLAMA_VISION_MODEL = brain.vision_model
+    else:
+        OLLAMA_VISION_MODEL = resolve_vision_model()
+        brain.vision_model = OLLAMA_VISION_MODEL
     jpeg_bytes = prepare_vision_jpeg(image_bytes)
     flag_note = identify_flag(jpeg_bytes)
     prompt = (
@@ -1122,7 +1131,7 @@ async def answer_voice_message(message):
     if not voices:
         return False
     attachment = voices[0]
-    if attachment.size > 25 * 1024 * 1024:
+    if (attachment.size or 0) > 25 * 1024 * 1024:
         await message.reply("That voice message is too large for my local transcriber - keep it under 25 MB.", mention_author=False)
         return True
     try:
@@ -1163,6 +1172,9 @@ async def answer_voice_message(message):
     reply = (reply or "I heard you, but I need a second - say that again, yeah?")[:1500]
     remember(message.author.id, message.channel.id, "user", transcript)
     remember(message.author.id, message.channel.id, "assistant", reply)
+    # Update brain with voice interaction
+    brain.update_user_state(message.author.id, pending_voice=True)
+    brain.log_event("voice", "replied", user_id=message.author.id)
     asyncio.get_running_loop().run_in_executor(
         None, summarize_old_turns, message.author.id, message.channel.id
     )
@@ -1170,8 +1182,10 @@ async def answer_voice_message(message):
         await send_voice_reply(message, reply)
     except RuntimeError:
         print("Voice reply skipped: edge-tts is not installed.")
+        await message.reply(_strip_action_tags(reply), mention_author=False)
     except Exception as error:
         print(f"Voice reply generation failed: {error}")
+        await message.reply(_strip_action_tags(reply), mention_author=False)
     return True
 
 
@@ -1505,13 +1519,13 @@ async def send_voice_reply(message, text):
                 # Check if quota was exhausted — auto-reset at start of new month
                 global _elevenlabs_quota_exhausted, _elevenlabs_quota_reset_month
                 current_month = datetime.now(timezone.utc).month
-                if _elevenlabs_quota_exhausted and _elevenlabs_quota_reset_month != current_month:
-                    _elevenlabs_quota_exhausted = False
+                if not brain.elevenlabs_alive and _elevenlabs_quota_reset_month != current_month:
                     brain.elevenlabs_alive = True
+                    _elevenlabs_quota_reset_month = current_month
                     brain.resolve_issue("ElevenLabs")
                     print("ElevenLabs quota reset — trying ElevenLabs again (new month).")
 
-                if not _elevenlabs_quota_exhausted:
+                if brain.elevenlabs_alive:
                     mp3_bytes = await asyncio.to_thread(_elevenlabs_tts_sync, full_text, dominant_emotion)
                     Path(final_path).write_bytes(mp3_bytes)
                     brain.log_event("tts", "elevenlabs_ok")
@@ -1520,9 +1534,8 @@ async def send_voice_reply(message, text):
                     print("ElevenLabs quota exhausted — using edge-tts fallback.")
                     await _edge_tts_render(segments, final_path)
             except _ElevenLabsQuotaError as quota_err:
-                _elevenlabs_quota_exhausted = True
-                _elevenlabs_quota_reset_month = datetime.now(timezone.utc).month
                 brain.elevenlabs_alive = False
+                _elevenlabs_quota_reset_month = datetime.now(timezone.utc).month
                 brain.add_known_issue("ElevenLabs quota exhausted")
                 brain.log_event("tts", "elevenlabs_quota_exhausted")
                 print(f"ElevenLabs quota exhausted — switching to edge-tts for this month. ({quota_err})")
@@ -1642,13 +1655,19 @@ async def answer_with_ai(message):
         return
 
     # Per-user rate limit — one concurrent AI reply per user maximum.
-    # asyncio.Lock is safe here since answer_with_ai runs on the single event loop thread.
-    # No threading lock needed — asyncio is single-threaded.
+    # Also enforce a 2-second minimum gap between replies to prevent spam.
     if message.author.id not in _user_ai_locks:
         _user_ai_locks[message.author.id] = asyncio.Lock()
     user_lock = _user_ai_locks[message.author.id]
     if user_lock.locked():
         return  # user already has a reply in flight
+    # Sequential spam guard — check how long since last reply
+    user_state = brain.get_user_state(message.author.id)
+    last_seen = user_state.get("last_seen")
+    if last_seen and isinstance(last_seen, datetime):
+        elapsed = (datetime.now(timezone.utc) - last_seen).total_seconds()
+        if elapsed < 2.0:
+            return  # too fast, drop silently
     async with user_lock:
         try:
             await _answer_with_ai_inner(message, stripped_content)
@@ -1906,6 +1925,7 @@ async def ollama_health_check():
         _ollama_was_down = False
         _ollama_consecutive_failures = 0
         brain.ollama_alive = True
+        brain.vision_model = ""  # force re-resolve vision model now Ollama is back
         brain.resolve_issue("Ollama")
         brain.log_event("ollama", "recovered")
 
@@ -1929,8 +1949,13 @@ async def on_ready():
     global bot_loop, console_started, slash_commands_synced, OLLAMA_VISION_MODEL
     bot_loop = asyncio.get_running_loop()
     print(f"Bot is online as {bot.user}")
-    OLLAMA_VISION_MODEL = resolve_vision_model()
-    print(f"Using vision model: {OLLAMA_VISION_MODEL}")
+    # Resolve vision model in background so on_ready doesn't block
+    async def _resolve_vision_async():
+        global OLLAMA_VISION_MODEL
+        OLLAMA_VISION_MODEL = await asyncio.to_thread(resolve_vision_model)
+        brain.vision_model = OLLAMA_VISION_MODEL
+        print(f"Using vision model: {OLLAMA_VISION_MODEL}")
+    asyncio.ensure_future(_resolve_vision_async())
     if not console_started:
         console_started = True
         threading.Thread(target=send_from_console, daemon=True).start()
@@ -1940,14 +1965,21 @@ async def on_ready():
         ollama_health_check.start()
     if not slash_commands_synced:
         try:
-            synced = await bot.tree.sync()
-            # Guild registration makes the commands appear immediately in the
-            # servers where the bot is already present.
-            for guild in bot.guilds:
-                bot.tree.copy_global_to(guild=guild)
-                await bot.tree.sync(guild=guild)
+            # Only sync if command schema has changed — avoids hitting rate limits on every restart
+            cmd_hash_file = Path(__file__).with_name(".cmd_hash")
+            current_cmds = sorted(c.name for c in bot.tree.get_commands())
+            current_hash = hashlib.md5(json.dumps(current_cmds).encode()).hexdigest()
+            saved_hash = cmd_hash_file.read_text().strip() if cmd_hash_file.exists() else ""
+            if current_hash != saved_hash:
+                synced = await bot.tree.sync()
+                for guild in bot.guilds:
+                    bot.tree.copy_global_to(guild=guild)
+                    await bot.tree.sync(guild=guild)
+                cmd_hash_file.write_text(current_hash)
+                print(f"Registered {len(synced)} Discord slash commands.")
+            else:
+                print("Slash commands unchanged — skipping sync.")
             slash_commands_synced = True
-            print(f"Registered {len(synced)} Discord slash commands.")
         except discord.HTTPException as error:
             print(f"Could not register slash commands: {error}")
 
