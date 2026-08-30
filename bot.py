@@ -150,15 +150,10 @@ class BotBrain:
         state["message_count"] = state.get("message_count", 0) + 1
 
     def track_groq_request(self):
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        if self.groq_request_date != today:
-            self.groq_requests_today = 0
-            self.groq_request_date = today
-        self.groq_requests_today += 1
+        pass  # tracking handled by groq_key_index rotation
 
     def groq_quota_warning(self) -> bool:
-        """Return True if we're approaching Groq's ~14400 daily free limit."""
-        return self.groq_requests_today > 12000
+        return False  # quota warnings not applicable with key rotation
 
     def system_status(self) -> str:
         """Human-readable status string injected into AI context."""

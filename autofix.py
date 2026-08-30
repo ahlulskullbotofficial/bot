@@ -47,15 +47,17 @@ REPEAT_THRESHOLD    = 3
 
 
 def _load_groq_key():
-    """Read GROQ_API_KEY from .env — available even without loading bot.py."""
+    """Read GROQ_API_KEY from environment — works both locally and on hosting servers."""
     import os
+    # Always check live env vars first (set by hosting platform)
     key = os.environ.get("GROQ_API_KEY", "")
     if key:
         return key
+    # Fallback: read from .env file for local development
     try:
         for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
             line = line.strip()
-            if line.startswith("GROQ_API_KEY="):
+            if line.startswith("GROQ_API_KEY=") and not line.startswith("#"):
                 return line.split("=", 1)[1].strip()
     except Exception:
         pass
