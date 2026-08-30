@@ -2114,6 +2114,8 @@ async def groq_health_check():
                     print(f"[GROQ ALERT] DM sent to owner {BOT_OWNER_ID}")
                 except Exception as dm_err:
                     print(f"[GROQ ALERT] Could not DM owner: {dm_err}")
+            # Stop checking until manually restarted — key needs human action
+            groq_health_check.stop()
     except Exception:
         pass
 
