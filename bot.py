@@ -5,6 +5,7 @@ import json
 import os
 import re
 import sqlite3
+import sys
 import threading
 import tempfile
 import traceback
@@ -14,6 +15,12 @@ from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
+
+# Force UTF-8 output so non-ASCII usernames/messages never crash the bot
+if sys.stdout.encoding != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if sys.stderr.encoding != "utf-8":
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # Load secrets from .env so they are never hardcoded in source
 from dotenv import load_dotenv
@@ -601,41 +608,54 @@ def send_from_console():
 def _call_ai(messages, max_tokens=160, temperature=0.8):
     """
     Unified AI caller. Uses Groq if GROQ_API_KEY is set, otherwise Ollama.
-    Both APIs use the OpenAI-compatible messages format so the switch is seamless.
+    Falls back to Ollama automatically if Groq returns an error.
     """
     if GROQ_API_KEY:
-        payload = json.dumps({
-            "model": GROQ_MODEL,
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-        }).encode("utf-8")
-        request = urllib.request.Request(
-            GROQ_URL,
-            data=payload,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {GROQ_API_KEY}",
-            },
-            method="POST",
-        )
-        with urllib.request.urlopen(request, timeout=30) as response:
-            return json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"].strip()
-    else:
-        payload = json.dumps({
-            "model": OLLAMA_MODEL,
-            "messages": messages,
-            "stream": False,
-            "options": {"num_predict": max_tokens, "temperature": temperature},
-        }).encode("utf-8")
-        request = urllib.request.Request(
-            OLLAMA_URL,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(request, timeout=60) as response:
-            return json.loads(response.read().decode("utf-8"))["message"]["content"].strip()
+        try:
+            payload = json.dumps({
+                "model": GROQ_MODEL,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            }).encode("utf-8")
+            request = urllib.request.Request(
+                GROQ_URL,
+                data=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {GROQ_API_KEY}",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"].strip()
+        except urllib.error.HTTPError as e:
+            body = ""
+            try:
+                body = e.read().decode("utf-8", errors="ignore")[:200]
+            except Exception:
+                pass
+            print(f"[AI] Groq error {e.code}: {body} — falling back to Ollama")
+            # Fall through to Ollama below
+        except Exception as e:
+            print(f"[AI] Groq failed ({type(e).__name__}: {e}) — falling back to Ollama")
+            # Fall through to Ollama below
+
+    # Ollama fallback
+    payload = json.dumps({
+        "model": OLLAMA_MODEL,
+        "messages": messages,
+        "stream": False,
+        "options": {"num_predict": max_tokens, "temperature": temperature},
+    }).encode("utf-8")
+    request = urllib.request.Request(
+        OLLAMA_URL,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return json.loads(response.read().decode("utf-8"))["message"]["content"].strip()
 
 
 def make_ai_reply(history, user_message, member_context, visual=False):
@@ -1391,25 +1411,37 @@ async def answer_with_ai(message):
     stripped_content = message.content
     if bot.user:
         stripped_content = stripped_content.replace(bot.user.mention, "").replace(f"<@!{bot.user.id}>", "").strip()
+
+    # Log every incoming ping/reply so autofix can detect silent failures
+    try:
+        print(f"[Reply] Incoming from {message.author.display_name}: {stripped_content[:80]!r}".encode("utf-8", errors="replace").decode("utf-8", errors="replace"))
+    except Exception:
+        print("[Reply] Incoming message (could not print display name)")
+
     action, value = parse_control(stripped_content)
     if action == "mute":
         set_ai_enabled(message.author.id, False)
         await message.reply("Say less - I won't reply to you again unless you ask me to resume.")
+        print(f"[Reply sent] Text to {message.author.display_name}")
         return
     if action == "unmute":
         set_ai_enabled(message.author.id, True)
         await message.reply("You're back on the list. What's good?")
+        print(f"[Reply sent] Text to {message.author.display_name}")
         return
     if action == "forget":
         forget_user(message.author.id)
         await message.reply("Your saved conversation memory has been cleared.")
+        print(f"[Reply sent] Text to {message.author.display_name}")
         return
     if action == "schedule":
         content, seconds = value
         due = schedule_message(message.author.id, message.channel.id, content, seconds)
         await message.reply(f"Calm. I'll send that here at {due.strftime('%H:%M UTC')}.")
+        print(f"[Reply sent] Text to {message.author.display_name}")
         return
     if not ai_enabled_for(message.author.id):
+        print(f"[Reply sent] Skipped (AI disabled) for {message.author.display_name}")
         return
 
     # Per-user rate limit using asyncio.Lock — non-blocking, event-loop safe.
@@ -1425,6 +1457,11 @@ async def answer_with_ai(message):
         except Exception as e:
             print(f"[answer_with_ai] Unhandled exception: {type(e).__name__}: {e}")
             traceback.print_exc()
+            try:
+                await message.reply("Something went wrong on my end — try again in a sec.", mention_author=False)
+            except Exception:
+                pass
+            print(f"[Reply sent] Fallback to {message.author.display_name}")
 
 
 async def _answer_with_ai_inner(message, stripped_content):
@@ -1446,6 +1483,7 @@ async def _answer_with_ai_inner(message, stripped_content):
                 f"Run `ollama pull {OLLAMA_VISION_MODEL}`, then restart me.",
                 mention_author=False,
             )
+            print(f"[Reply sent] Text to {message.author.display_name}")
             return
         if not image_description.startswith("["):
             remember_image_context(message.author.id, guild_id, image_description)
@@ -1536,9 +1574,8 @@ async def _answer_with_ai_inner(message, stripped_content):
     )
     if requests_voice_reply(user_message):
         try:
-            # Pass the raw reply (with emotion tags) to the voice engine.
-            # _strip_action_tags only applies to the text fallback path below.
             await send_voice_reply(message, reply)
+            print(f"[Reply sent] Voice to {message.author.display_name}")
             return
         except RuntimeError as error:
             print(f"Voice reply runtime error: {error}")
@@ -1546,13 +1583,16 @@ async def _answer_with_ai_inner(message, stripped_content):
                 _strip_action_tags(reply) + "\n\n*Voice replies need `py -m pip install edge-tts` once, then a restart.*",
                 mention_author=False,
             )
+            print(f"[Reply sent] Text to {message.author.display_name}")
             return
         except Exception as error:
             print(f"Voice reply generation failed (full error): {type(error).__name__}: {error}")
             traceback.print_exc()
             await message.reply(_strip_action_tags(reply), mention_author=False)
+            print(f"[Reply sent] Text to {message.author.display_name}")
             return
     await message.reply(_strip_action_tags(reply), mention_author=False)
+    print(f"[Reply sent] Text to {message.author.display_name}")
 
 
 @tasks.loop(seconds=30)

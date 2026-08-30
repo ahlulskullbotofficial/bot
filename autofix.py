@@ -62,7 +62,7 @@ BEHAVIOUR_PATTERNS = [
     ("os_error",         r"OSError:|FileNotFoundError:|PermissionError:",   "fix"),
     # Soft / behavioural failures
     ("ai_not_ready",     r"local AI is not ready|Check that Ollama",        "fix"),
-    ("ai_failed",        r"Local AI request failed",                        "fix"),
+    ("ai_failed",        r"Local AI request failed|\[AI\].*failed",         "fix"),
     ("voice_failed",     r"Voice reply generation failed",                  "fix"),
     ("db_locked",        r"database is locked",                             "fix"),
     ("db_error",         r"sqlite3\.",                                      "fix"),
@@ -73,6 +73,7 @@ BEHAVIOUR_PATTERNS = [
     ("unhandled_exc",    r"Ignoring exception in",                          "fix"),
     ("memory_fail",      r"Memory summarisation failed",                    "warn"),
     ("vision_fail",      r"Local image analysis failed",                    "warn"),
+    ("silent_failure",   r"\[SILENT_FAILURE\]",                             "fix"),
 ]
 
 # Pre-compile for speed
@@ -270,15 +271,38 @@ If you cannot safely determine a fix, output exactly: CANNOT_FIX
 class BehaviourMonitor:
     def __init__(self):
         self.recent_lines    = collections.deque(maxlen=120)
-        self.error_counts    = collections.defaultdict(int)  # label -> count
-        self.pending_fix     = None   # (label, trigger_lines) waiting to be processed
+        self.error_counts    = collections.defaultdict(int)
         self.lock            = threading.Lock()
         self._last_fix_time  = 0
+        self._pending_reply  = None   # timestamp when [Reply] was seen
+        self._silent_fail_injected = False
 
     def feed(self, line):
         """Feed a new output line. Returns (label, lines) if a fix should fire."""
         self.recent_lines.append(line.rstrip())
 
+        # Track incoming vs sent replies to detect silent failures
+        if "[Reply]" in line and "Incoming" in line:
+            self._pending_reply = time.time()
+            self._silent_fail_injected = False
+        if "[Reply sent]" in line:
+            self._pending_reply = None
+            self._silent_fail_injected = False
+
+        # If a reply was received but not sent within 90 seconds, inject a
+        # synthetic silent failure marker that the pattern detector will catch
+        if (self._pending_reply and not self._silent_fail_injected
+                and time.time() - self._pending_reply > 90):
+            self._silent_fail_injected = True
+            synthetic = "[SILENT_FAILURE] Bot received message but sent no reply after 90s"
+            print(f"[Monitor] {synthetic}", flush=True)
+            self.recent_lines.append(synthetic)
+            # Feed the synthetic line back through the detector
+            return self._check_patterns(synthetic)
+
+        return self._check_patterns(line)
+
+    def _check_patterns(self, line):
         for label, pattern, severity in COMPILED_PATTERNS:
             if pattern.search(line):
                 with self.lock:
@@ -287,35 +311,29 @@ class BehaviourMonitor:
 
                 if severity == "warn":
                     if count == 1:
-                        log(f"[Monitor] Warning pattern '{label}': {line.rstrip()}")
+                        log(f"[Monitor] Warning '{label}': {line.rstrip()}")
                     return None
 
-                # severity == "fix"
                 if severity == "fix":
-                    # Collect surrounding context lines
                     trigger_lines = list(self.recent_lines)[-10:]
                     now = time.time()
-
-                    # Only fire a fix if enough time has passed since the last one
                     if now - self._last_fix_time < 30:
                         return None
-
-                    # For soft errors require REPEAT_THRESHOLD occurrences
-                    # unless it's a hard crash (traceback/syntax/etc.)
                     hard_errors = {"traceback", "name_error", "syntax_error",
-                                   "import_error", "attribute_error"}
+                                   "import_error", "attribute_error", "silent_failure"}
                     if label not in hard_errors and count < REPEAT_THRESHOLD:
                         return None
-
                     self._last_fix_time = now
-                    self.error_counts[label] = 0  # reset count after triggering
+                    self.error_counts[label] = 0
                     return (label, trigger_lines)
         return None
 
     def reset(self):
         with self.lock:
             self.error_counts.clear()
-        self._last_fix_time = 0
+        self._last_fix_time  = 0
+        self._pending_reply  = None
+        self._silent_fail_injected = False
         self.recent_lines.clear()
 
     def recent_output(self):
@@ -443,9 +461,10 @@ def run():
                 needs_fix   = result
                 kill_reason = result[0]
                 log(f"[AutoFix] Behaviour trigger '{kill_reason}' — will fix after output drains.")
-                # Don't kill immediately for soft errors; let it finish logging
+                # Kill immediately for hard errors and silent failures
                 if kill_reason in {"traceback", "name_error", "syntax_error",
-                                    "import_error", "attribute_error", "type_error"}:
+                                    "import_error", "attribute_error", "type_error",
+                                    "silent_failure"}:
                     if proc.poll() is None:
                         try:
                             proc.terminate()
