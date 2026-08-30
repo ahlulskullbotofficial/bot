@@ -251,6 +251,8 @@ Your job: produce a minimal, safe fix for this specific problem.
 
 Rules:
 - Only fix the exact issue shown. Do not refactor anything else.
+- Preserve all existing logic — only change what is broken.
+- Copy the SEARCH block character-for-character from the code above, including all spaces.
 - Output ONLY patch blocks in this format, nothing else:
 
 <<<SEARCH>>>
@@ -460,16 +462,23 @@ def run():
             if result and needs_fix is None:
                 needs_fix   = result
                 kill_reason = result[0]
-                log(f"[AutoFix] Behaviour trigger '{kill_reason}' — will fix after output drains.")
-                # Kill immediately for hard errors and silent failures
+                log(f"[AutoFix] Behaviour trigger '{kill_reason}' — draining output before fixing.")
+                # For hard crashes: DON'T kill immediately — let the full traceback
+                # print first so we capture the actual error message, then kill.
+                # We set a short drain timer instead.
                 if kill_reason in {"name_error", "syntax_error",
                                     "import_error", "attribute_error", "type_error",
                                     "silent_failure"}:
-                    if proc.poll() is None:
-                        try:
-                            proc.terminate()
-                        except Exception:
-                            pass
+                    # Give the process 2 seconds to finish printing the traceback
+                    import threading as _threading
+                    def _delayed_kill():
+                        time.sleep(2)
+                        if proc.poll() is None:
+                            try:
+                                proc.terminate()
+                            except Exception:
+                                pass
+                    _threading.Thread(target=_delayed_kill, daemon=True).start()
 
         proc.wait()
         stop_watch.set()

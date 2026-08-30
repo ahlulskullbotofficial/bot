@@ -75,6 +75,104 @@ ELEVENLABS_MODEL = "eleven_multilingual_v2"
 _elevenlabs_quota_exhausted = False
 _elevenlabs_quota_reset_month = None
 
+# ============================================================================
+# BOT BRAIN — unified cognitive state shared across all subsystems.
+# Every subsystem reads from and writes to brain, so they all stay in sync.
+# Think of it as the bot's nervous system: one source of truth.
+# ============================================================================
+class BotBrain:
+    def __init__(self):
+        # --- Service health ---
+        self.ollama_alive      = True   # set by health check task
+        self.groq_alive        = True   # set by _call_ai on error
+        self.elevenlabs_alive  = True   # set by TTS on quota error
+
+        # --- Active conversation state per user ---
+        # {user_id: {"topic": str, "mood": str, "last_seen": datetime, "pending_voice": bool}}
+        self.user_state: dict = {}
+
+        # --- System event log (rolling, last 200 entries) ---
+        # Each entry: {"ts": iso, "system": str, "event": str, "user_id": int|None}
+        self.event_log: list = []
+
+        # --- Self-improvement log: tracks what fixes were attempted ---
+        self.fix_history: list = []
+
+        # --- Pending issues that need resolution ---
+        self.known_issues: list = []
+
+        # --- Quiz awareness ---
+        self.active_quiz_channels: set = set()  # channel_ids with active quiz
+
+        # --- Groq usage tracking (rough estimate for quota awareness) ---
+        self.groq_requests_today: int = 0
+        self.groq_request_date: str = ""
+
+    def log_event(self, system: str, event: str, user_id=None):
+        entry = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "system": system,
+            "event": event,
+            "user_id": user_id,
+        }
+        self.event_log.append(entry)
+        if len(self.event_log) > 200:
+            self.event_log.pop(0)
+
+    def get_user_state(self, user_id: int) -> dict:
+        if user_id not in self.user_state:
+            self.user_state[user_id] = {
+                "topic": "",
+                "mood": "neutral",
+                "last_seen": datetime.now(timezone.utc),
+                "pending_voice": False,
+                "message_count": 0,
+            }
+        return self.user_state[user_id]
+
+    def update_user_state(self, user_id: int, **kwargs):
+        state = self.get_user_state(user_id)
+        state.update(kwargs)
+        state["last_seen"] = datetime.now(timezone.utc)
+        state["message_count"] = state.get("message_count", 0) + 1
+
+    def track_groq_request(self):
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if self.groq_request_date != today:
+            self.groq_requests_today = 0
+            self.groq_request_date = today
+        self.groq_requests_today += 1
+
+    def groq_quota_warning(self) -> bool:
+        """Return True if we're approaching Groq's ~14400 daily free limit."""
+        return self.groq_requests_today > 12000
+
+    def system_status(self) -> str:
+        """Human-readable status string injected into AI context."""
+        parts = []
+        if not self.ollama_alive:
+            parts.append("Ollama offline (using Groq for all AI)")
+        if not self.groq_alive:
+            parts.append("Groq unavailable (using local Ollama)")
+        if not self.elevenlabs_alive:
+            parts.append("ElevenLabs quota exhausted (using edge-tts)")
+        if self.groq_quota_warning():
+            parts.append(f"Groq near daily limit ({self.groq_requests_today} requests today)")
+        return "; ".join(parts) if parts else "All systems nominal"
+
+    def add_known_issue(self, issue: str):
+        if issue not in self.known_issues:
+            self.known_issues.append(issue)
+            if len(self.known_issues) > 20:
+                self.known_issues.pop(0)
+
+    def resolve_issue(self, issue_fragment: str):
+        self.known_issues = [i for i in self.known_issues if issue_fragment not in i]
+
+
+# Global brain instance — imported and used by all subsystems
+brain = BotBrain()
+
 # Per-user AI request rate limiting: max 1 concurrent AI reply per user.
 # Uses asyncio.Lock so it never blocks the event loop thread.
 _user_ai_locks: dict = {}
@@ -333,9 +431,14 @@ def summarize_old_turns(user_id, channel_id):
         f"{role.upper()}: {content[:300]}" for _, role, content in old_turns
     )
     prompt = (
-        "You are a memory assistant. Your job is to compress a chat transcript into a concise summary "
-        "that preserves every important fact, topic, opinion, and personal detail. "
-        "Never invent information. Write in third person about the user.\n\n"
+        "You are a memory assistant for a Discord bot. Compress this chat transcript into a "
+        "concise summary that preserves every important fact, correction, opinion, and personal "
+        "detail the USER shared. Focus on what the USER said, not the bot.\n"
+        "Rules:\n"
+        "- If the user corrected a previous statement, keep only the corrected version.\n"
+        "- Preserve specific numbers, dates, names, and preferences exactly.\n"
+        "- Write in third person: 'The user said...', 'They mentioned...'\n"
+        "- Never invent information.\n\n"
     )
     if existing_summary:
         prompt += f"EXISTING SUMMARY (merge new info into this):\n{existing_summary}\n\n"
@@ -453,25 +556,35 @@ def remember_member_facts(user_id, guild_id, content):
         return
     with _db() as database:
         for key, value, importance in facts:
+            # Check if a conflicting value already exists for this key
+            existing = database.execute(
+                "SELECT memory_value, importance FROM member_memories "
+                "WHERE user_id = ? AND guild_id = ? AND memory_key = ?",
+                (user_id, guild_id, key)
+            ).fetchone()
+            if existing:
+                old_value, old_importance = existing
+                # If the new value contradicts the old one and has equal or higher importance,
+                # update it. Log the change so the brain is aware.
+                if old_value != value and importance >= old_importance:
+                    brain.log_event("memory", f"contradiction_resolved:{key}", user_id=user_id)
             database.execute(
                 "INSERT INTO member_memories(user_id, guild_id, memory_key, memory_value, importance, times_referenced, created_at, updated_at) "
                 "VALUES (?, ?, ?, ?, ?, 0, ?, ?) "
                 "ON CONFLICT(user_id, guild_id, memory_key) DO UPDATE SET "
-                "memory_value = excluded.memory_value, "
+                "memory_value = CASE WHEN excluded.importance >= importance THEN excluded.memory_value ELSE memory_value END, "
                 "importance = MAX(importance, excluded.importance), "
                 "updated_at = excluded.updated_at",
                 (user_id, guild_id, key, value, importance, now, now),
             )
         # Auto-prune: delete importance-1 facts older than 7 days that were never referenced.
-        # These are casual one-off mentions with no lasting value.
         cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
         database.execute(
             "DELETE FROM member_memories WHERE user_id = ? AND guild_id = ? "
             "AND importance = 1 AND times_referenced = 0 AND updated_at < ?",
             (user_id, guild_id, cutoff),
         )
-        # Hard cap: keep the 40 best facts per user per guild, ranked by a
-        # combined score of importance and how often they've been referenced.
+        # Hard cap: keep the 40 best facts per user per guild
         database.execute(
             "DELETE FROM member_memories WHERE user_id = ? AND guild_id = ? AND id NOT IN "
             "(SELECT id FROM member_memories WHERE user_id = ? AND guild_id = ? "
@@ -502,7 +615,13 @@ def member_memory_context(user_id, guild_id, display_name):
         f"You are talking to {display_name} (Discord user ID {user_id}). "
         f"This person is DIFFERENT from all other members - their facts below apply ONLY to them."
     )
+    # Inject user brain state for richer context
+    user_state = brain.get_user_state(user_id)
+    msg_count = user_state.get("message_count", 0)
+    if msg_count > 0:
+        identity += f" They have sent {msg_count} messages to the bot."
     if not rows:
+        return identity + " No personal facts saved yet for this member."
         return identity + " No personal facts saved yet for this member."
     # Group facts by key, deduplicate values
     grouped = {}
@@ -628,7 +747,11 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
                 method="POST",
             )
             with urllib.request.urlopen(request, timeout=30) as response:
-                return json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"].strip()
+                result = json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"].strip()
+                brain.track_groq_request()
+                brain.groq_alive = True
+                brain.log_event("groq", "reply_ok")
+                return result
         except urllib.error.HTTPError as e:
             body = ""
             try:
@@ -636,9 +759,14 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
             except Exception:
                 pass
             print(f"[AI] Groq error {e.code}: {body} — falling back to Ollama")
+            brain.groq_alive = False
+            brain.log_event("groq", f"error_{e.code}")
+            brain.add_known_issue(f"Groq HTTP {e.code}")
             # Fall through to Ollama below
         except Exception as e:
             print(f"[AI] Groq failed ({type(e).__name__}: {e}) — falling back to Ollama")
+            brain.groq_alive = False
+            brain.log_event("groq", f"failed_{type(e).__name__}")
             # Fall through to Ollama below
 
     # Ollama fallback
@@ -658,9 +786,23 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
         return json.loads(response.read().decode("utf-8"))["message"]["content"].strip()
 
 
-def make_ai_reply(history, user_message, member_context, visual=False):
+def make_ai_reply(history, user_message, member_context, visual=False, user_id=None):
+    # Build a rich system prompt that includes brain awareness
+    system_parts = [AI_INSTRUCTIONS, current_time_context(), member_context]
+
+    # Inject system status so the AI knows what's available
+    status = brain.system_status()
+    if status != "All systems nominal":
+        system_parts.append(f"[System status: {status}]")
+
+    # Inject quiz context if user is in an active quiz channel
+    if user_id and hasattr(brain, "active_quiz_channels"):
+        # We can't easily check channel here, so this is handled at call site
+
+        pass
+
     messages = [
-        {"role": "system", "content": AI_INSTRUCTIONS + "\n\n" + current_time_context() + "\n\n" + member_context}
+        {"role": "system", "content": "\n\n".join(system_parts)}
     ] + history + [{"role": "user", "content": user_message}]
     max_tokens  = 180 if visual else 160
     temperature = 0.2 if visual else 0.8
@@ -868,8 +1010,8 @@ async def wait_for_visuals(message):
 
 
 async def analyse_visual_attachments(message, caption):
-    # If Ollama isn't reachable, skip vision analysis entirely
-    if _ollama_was_down or not _ollama_ping():
+    # If Ollama isn't reachable, skip vision analysis entirely — use to_thread so we don't block the event loop
+    if _ollama_was_down or not await asyncio.to_thread(_ollama_ping):
         return "[Image attached; vision analysis is only available when running locally with Ollama.]"
     message = await wait_for_visuals(message)
     sources = collect_visual_sources(message)
@@ -919,46 +1061,43 @@ def transcribe_voice(audio_bytes, filename):
     Transcribe audio. Uses Groq Whisper API if available (works on any server),
     falls back to local faster-whisper if installed, otherwise raises RuntimeError.
     """
-    # Try Groq Whisper first — works on hosted servers with no local model needed
+    _MIME_TYPES = {
+        ".ogg": "audio/ogg", ".opus": "audio/opus", ".mp3": "audio/mpeg",
+        ".wav": "audio/wav", ".m4a": "audio/mp4", ".aac": "audio/aac",
+        ".flac": "audio/flac",
+    }
+    suffix = Path(filename or "voice.ogg").suffix.lower() or ".ogg"
+    mime_type = _MIME_TYPES.get(suffix, "audio/ogg")
+
     if GROQ_API_KEY:
         try:
-            suffix = Path(filename or "voice.ogg").suffix or ".ogg"
-            fd, audio_path = tempfile.mkstemp(suffix=suffix)
-            try:
-                with os.fdopen(fd, "wb") as f:
-                    f.write(audio_bytes)
-                import urllib.request
-                boundary = "----FormBoundary7MA4YWxkTrZu0gW"
-                with open(audio_path, "rb") as audio_file:
-                    audio_data = audio_file.read()
-                body = (
-                    f"--{boundary}\r\n"
-                    f"Content-Disposition: form-data; name=\"file\"; filename=\"audio{suffix}\"\r\n"
-                    f"Content-Type: audio/ogg\r\n\r\n"
-                ).encode() + audio_data + (
-                    f"\r\n--{boundary}\r\n"
-                    f"Content-Disposition: form-data; name=\"model\"\r\n\r\n"
-                    f"whisper-large-v3-turbo\r\n"
-                    f"--{boundary}--\r\n"
-                ).encode()
-                req = urllib.request.Request(
-                    "https://api.groq.com/openai/v1/audio/transcriptions",
-                    data=body,
-                    headers={
-                        "Authorization": f"Bearer {GROQ_API_KEY}",
-                        "Content-Type": f"multipart/form-data; boundary={boundary}",
-                    },
-                    method="POST",
-                )
-                with urllib.request.urlopen(req, timeout=30) as resp:
-                    result = json.loads(resp.read().decode("utf-8"))
-                    return result.get("text", "").strip()
-            finally:
-                Path(audio_path).unlink(missing_ok=True)
+            boundary = "----FormBoundary7MA4YWxkTrZu0gW"
+            # Build multipart directly from bytes — no temp file needed
+            body = (
+                f"--{boundary}\r\n"
+                f"Content-Disposition: form-data; name=\"file\"; filename=\"audio{suffix}\"\r\n"
+                f"Content-Type: {mime_type}\r\n\r\n"
+            ).encode() + audio_bytes + (
+                f"\r\n--{boundary}\r\n"
+                f"Content-Disposition: form-data; name=\"model\"\r\n\r\n"
+                f"whisper-large-v3-turbo\r\n"
+                f"--{boundary}--\r\n"
+            ).encode()
+            req = urllib.request.Request(
+                "https://api.groq.com/openai/v1/audio/transcriptions",
+                data=body,
+                headers={
+                    "Authorization": f"Bearer {GROQ_API_KEY}",
+                    "Content-Type": f"multipart/form-data; boundary={boundary}",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return json.loads(resp.read().decode("utf-8")).get("text", "").strip()
         except Exception as e:
             print(f"[Voice] Groq transcription failed: {e} — trying local fallback")
 
-    # Local faster-whisper fallback (works when running on PC)
+    # Local faster-whisper fallback
     global voice_transcriber
     try:
         from faster_whisper import WhisperModel
@@ -968,7 +1107,6 @@ def transcribe_voice(audio_bytes, filename):
         with _transcriber_lock:
             if voice_transcriber is None:
                 voice_transcriber = WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
-    suffix = Path(filename or "voice.ogg").suffix or ".ogg"
     file_descriptor, audio_path = tempfile.mkstemp(suffix=suffix)
     try:
         with os.fdopen(file_descriptor, "wb") as audio_file:
@@ -1013,13 +1151,13 @@ async def answer_voice_message(message):
     member_context = member_memory_context(message.author.id, guild_id, message.author.display_name)
     try:
         async with message.channel.typing():
-            reply = await asyncio.to_thread(make_ai_reply, history, transcript, member_context)
+            reply = await asyncio.to_thread(make_ai_reply, history, transcript, member_context, False, message.author.id)
     except Exception as error:
         print(f"[AI] Voice transcription AI failed: {type(error).__name__}: {error}")
-        # Auto-retry once
+        brain.log_event("ai", f"voice_ai_failed_{type(error).__name__}", user_id=message.author.id)
         try:
             await asyncio.sleep(3)
-            reply = await asyncio.to_thread(make_ai_reply, history, transcript, member_context)
+            reply = await asyncio.to_thread(make_ai_reply, history, transcript, member_context, False, message.author.id)
         except Exception:
             reply = "I heard you, gimme a sec — my brain just glitched. Try again?"
     reply = (reply or "I heard you, but I need a second - say that again, yeah?")[:1500]
@@ -1369,11 +1507,14 @@ async def send_voice_reply(message, text):
                 current_month = datetime.now(timezone.utc).month
                 if _elevenlabs_quota_exhausted and _elevenlabs_quota_reset_month != current_month:
                     _elevenlabs_quota_exhausted = False
+                    brain.elevenlabs_alive = True
+                    brain.resolve_issue("ElevenLabs")
                     print("ElevenLabs quota reset — trying ElevenLabs again (new month).")
 
                 if not _elevenlabs_quota_exhausted:
                     mp3_bytes = await asyncio.to_thread(_elevenlabs_tts_sync, full_text, dominant_emotion)
                     Path(final_path).write_bytes(mp3_bytes)
+                    brain.log_event("tts", "elevenlabs_ok")
                     print(f"ElevenLabs TTS OK: emotion={dominant_emotion}, chars={len(full_text)}")
                 else:
                     print("ElevenLabs quota exhausted — using edge-tts fallback.")
@@ -1381,10 +1522,14 @@ async def send_voice_reply(message, text):
             except _ElevenLabsQuotaError as quota_err:
                 _elevenlabs_quota_exhausted = True
                 _elevenlabs_quota_reset_month = datetime.now(timezone.utc).month
+                brain.elevenlabs_alive = False
+                brain.add_known_issue("ElevenLabs quota exhausted")
+                brain.log_event("tts", "elevenlabs_quota_exhausted")
                 print(f"ElevenLabs quota exhausted — switching to edge-tts for this month. ({quota_err})")
                 await _edge_tts_render(segments, final_path)
             except Exception as el_error:
                 print(f"ElevenLabs TTS error, falling back to edge-tts: {el_error}")
+                brain.log_event("tts", f"elevenlabs_error_{type(el_error).__name__}")
                 await _edge_tts_render(segments, final_path)
         else:
             await _edge_tts_render(segments, final_path)
@@ -1466,6 +1611,10 @@ async def answer_with_ai(message):
     except Exception:
         print("[Reply] Incoming message (could not print display name)")
 
+    # Update brain user state
+    brain.update_user_state(message.author.id, pending_voice=False)
+    brain.log_event("reply", "incoming", user_id=message.author.id)
+
     action, value = parse_control(stripped_content)
     if action == "mute":
         set_ai_enabled(message.author.id, False)
@@ -1492,13 +1641,14 @@ async def answer_with_ai(message):
         print(f"[Reply sent] Skipped (AI disabled) for {message.author.display_name}")
         return
 
-    # Per-user rate limit using asyncio.Lock — non-blocking, event-loop safe.
-    # If the user already has a reply in flight, skip silently.
+    # Per-user rate limit — one concurrent AI reply per user maximum.
+    # asyncio.Lock is safe here since answer_with_ai runs on the single event loop thread.
+    # No threading lock needed — asyncio is single-threaded.
     if message.author.id not in _user_ai_locks:
         _user_ai_locks[message.author.id] = asyncio.Lock()
     user_lock = _user_ai_locks[message.author.id]
     if user_lock.locked():
-        return  # already processing a request for this user
+        return  # user already has a reply in flight
     async with user_lock:
         try:
             await _answer_with_ai_inner(message, stripped_content)
@@ -1538,9 +1688,10 @@ async def _answer_with_ai_inner(message, stripped_content):
             "\n\nVisual analysis (authoritative; do not contradict or invent extra objects):\n"
             + image_description
         )
-    # Run fact extraction in background thread — it calls Ollama which would block the event loop.
+    # Run fact extraction with the ORIGINAL user message only — not the augmented version
+    # containing the visual analysis blob, which would produce garbage facts.
     asyncio.get_running_loop().run_in_executor(
-        None, remember_member_facts, message.author.id, guild_id, user_message
+        None, remember_member_facts, message.author.id, guild_id, stripped_content
     )
     # Old chat turns often contain wrong picture guesses; don't let them override a new image.
     history = [] if image_description else recent_memory(message.author.id, message.channel.id)
@@ -1595,20 +1746,20 @@ async def _answer_with_ai_inner(message, stripped_content):
     try:
         async with message.channel.typing():
             reply = await asyncio.to_thread(
-                make_ai_reply, history, ai_user_message, member_context, bool(image_description)
+                make_ai_reply, history, ai_user_message, member_context, bool(image_description), message.author.id
             )
     except Exception as error:
         print(f"[AI] Request failed: {type(error).__name__}: {error}")
         traceback.print_exc()
-        # Try to auto-recover: trigger the health check immediately
+        brain.log_event("ai", f"reply_failed_{type(error).__name__}", user_id=message.author.id)
+        brain.add_known_issue(f"AI reply failed: {type(error).__name__}")
         if not _ollama_was_down:
             asyncio.get_running_loop().run_in_executor(None, _try_start_ollama)
-        # Retry once after a short wait
         try:
             await asyncio.sleep(3)
             async with message.channel.typing():
                 reply = await asyncio.to_thread(
-                    make_ai_reply, history, ai_user_message, member_context, bool(image_description)
+                    make_ai_reply, history, ai_user_message, member_context, bool(image_description), message.author.id
                 )
         except Exception:
             await message.reply("Bear with me, my brain's loading... try again in a sec.", mention_author=False)
@@ -1740,6 +1891,9 @@ async def ollama_health_check():
         if not _ollama_was_down:
             _log_heal("Ollama is unreachable. Attempting auto-restart...")
             _ollama_was_down = True
+            brain.ollama_alive = False
+            brain.add_known_issue("Ollama unreachable")
+            brain.log_event("ollama", "went_down")
         if _ollama_consecutive_failures <= 3:
             started = await asyncio.to_thread(_try_start_ollama)
             if started:
@@ -1751,6 +1905,9 @@ async def ollama_health_check():
         _log_heal(f"Ollama is back online after {_ollama_consecutive_failures} failed check(s).")
         _ollama_was_down = False
         _ollama_consecutive_failures = 0
+        brain.ollama_alive = True
+        brain.resolve_issue("Ollama")
+        brain.log_event("ollama", "recovered")
 
     # Verify the chat model is installed and warm
     model_ok = await asyncio.to_thread(_ollama_model_loaded, OLLAMA_MODEL)
@@ -1826,6 +1983,21 @@ async def aioff(ctx):
 async def aistatus(ctx):
     state = "enabled" if ai_enabled_for(ctx.author.id) else "disabled"
     await ctx.send(f"AI replies are **{state}** for {ctx.author.mention}.")
+
+
+@bot.hybrid_command(description="Show the bot's system status and health.")
+async def botstatus(ctx):
+    """Show brain health: AI services, quota, known issues."""
+    lines = [
+        f"**System status:** {brain.system_status()}",
+        f"**Groq requests today:** {brain.groq_requests_today}",
+        f"**Ollama:** {'online' if brain.ollama_alive else 'offline'}",
+        f"**Groq:** {'online' if brain.groq_alive else 'offline'}",
+        f"**ElevenLabs:** {'online' if brain.elevenlabs_alive else 'quota exhausted'}",
+    ]
+    if brain.known_issues:
+        lines.append(f"**Known issues:** {', '.join(brain.known_issues[-5:])}")
+    await ctx.send("\n".join(lines))
 
 
 @bot.hybrid_command(description="Schedule a message for this channel, for example: 2h then your message.")
@@ -2031,6 +2203,11 @@ async def on_message(message):
                 await message.add_reaction("\U0001F480")
             except (discord.Forbidden, discord.HTTPException) as error:
                 print(f"Could not add auto-reaction: {error}")
+        # Process commands first — if the message contains a !command plus a mention,
+        # the command takes priority and the AI reply is skipped.
+        if message.content.strip().startswith("!"):
+            await bot.process_commands(message)
+            return
         await answer_with_ai(message)
         return
     if message.author.id in autoreact_users and not message.content.strip().lower().startswith("!autoreactoff"):
