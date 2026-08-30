@@ -371,7 +371,9 @@ class BehaviourMonitor:
                     if now - self._last_fix_time < 30:
                         return None
                     hard_errors = {"traceback", "name_error", "syntax_error",
-                                   "import_error", "attribute_error", "silent_failure"}
+                                   "import_error", "attribute_error", "silent_failure",
+                                   "unhandled_exc", "type_error", "value_error",
+                                   "key_error", "index_error", "os_error"}
                     if label not in hard_errors and count < REPEAT_THRESHOLD:
                         return None
                     self._last_fix_time = now
@@ -512,23 +514,17 @@ def run():
             if result and needs_fix is None:
                 needs_fix   = result
                 kill_reason = result[0]
-                log(f"[AutoFix] Behaviour trigger '{kill_reason}' — draining output before fixing.")
-                # For hard crashes: DON'T kill immediately — let the full traceback
-                # print first so we capture the actual error message, then kill.
-                # We set a short drain timer instead.
-                if kill_reason in {"name_error", "syntax_error",
-                                    "import_error", "attribute_error", "type_error",
-                                    "silent_failure"}:
-                    # Give the process 2 seconds to finish printing the traceback
-                    import threading as _threading
-                    def _delayed_kill():
-                        time.sleep(2)
-                        if proc.poll() is None:
-                            try:
-                                proc.terminate()
-                            except Exception:
-                                pass
-                    _threading.Thread(target=_delayed_kill, daemon=True).start()
+                log(f"[AutoFix] Behaviour trigger '{kill_reason}' — will fix and restart.")
+                # Kill after 3 seconds so full traceback prints first
+                import threading as _threading
+                def _delayed_kill():
+                    time.sleep(3)
+                    if proc.poll() is None:
+                        try:
+                            proc.terminate()
+                        except Exception:
+                            pass
+                _threading.Thread(target=_delayed_kill, daemon=True).start()
 
         proc.wait()
         stop_watch.set()
