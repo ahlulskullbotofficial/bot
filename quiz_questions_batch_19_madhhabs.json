@@ -1,0 +1,704 @@
+{
+  "questions": [
+    {
+      "id": "q19-001",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Which imam is associated with the Hanafi madhhab?",
+      "choices": [
+        "Abu Hanifah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanafi fiqh tradition"
+    },
+    {
+      "id": "q19-002",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Madhhabs: Which imam is associated with the Hanafi madhhab?",
+      "choices": [
+        "Abu Hanifah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanafi fiqh tradition"
+    },
+    {
+      "id": "q19-003",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Choose the correct answer: Which imam is associated with the Hanafi madhhab?",
+      "choices": [
+        "Abu Hanifah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanafi fiqh tradition"
+    },
+    {
+      "id": "q19-004",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Fiqh knowledge check — which imam is associated with the Hanafi madhhab?",
+      "choices": [
+        "Abu Hanifah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanafi fiqh tradition"
+    },
+    {
+      "id": "q19-005",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "In Sunni legal tradition, which imam is associated with the Hanafi madhhab?",
+      "choices": [
+        "Abu Hanifah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanafi fiqh tradition"
+    },
+    {
+      "id": "q19-006",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Which imam is associated with the Maliki madhhab?",
+      "choices": [
+        "Malik ibn Anas",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Maliki fiqh tradition"
+    },
+    {
+      "id": "q19-007",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Madhhabs: Which imam is associated with the Maliki madhhab?",
+      "choices": [
+        "Malik ibn Anas",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Maliki fiqh tradition"
+    },
+    {
+      "id": "q19-008",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Choose the correct answer: Which imam is associated with the Maliki madhhab?",
+      "choices": [
+        "Malik ibn Anas",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Maliki fiqh tradition"
+    },
+    {
+      "id": "q19-009",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Fiqh knowledge check — which imam is associated with the Maliki madhhab?",
+      "choices": [
+        "Malik ibn Anas",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Maliki fiqh tradition"
+    },
+    {
+      "id": "q19-010",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "In Sunni legal tradition, which imam is associated with the Maliki madhhab?",
+      "choices": [
+        "Malik ibn Anas",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Maliki fiqh tradition"
+    },
+    {
+      "id": "q19-011",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Which imam is associated with the Shafi'i madhhab?",
+      "choices": [
+        "Muhammad ibn Idris al-Shafi'i",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Shafi'i fiqh tradition"
+    },
+    {
+      "id": "q19-012",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Madhhabs: Which imam is associated with the Shafi'i madhhab?",
+      "choices": [
+        "Muhammad ibn Idris al-Shafi'i",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Shafi'i fiqh tradition"
+    },
+    {
+      "id": "q19-013",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Choose the correct answer: Which imam is associated with the Shafi'i madhhab?",
+      "choices": [
+        "Muhammad ibn Idris al-Shafi'i",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Shafi'i fiqh tradition"
+    },
+    {
+      "id": "q19-014",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Fiqh knowledge check — which imam is associated with the Shafi'i madhhab?",
+      "choices": [
+        "Muhammad ibn Idris al-Shafi'i",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Shafi'i fiqh tradition"
+    },
+    {
+      "id": "q19-015",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "In Sunni legal tradition, which imam is associated with the Shafi'i madhhab?",
+      "choices": [
+        "Muhammad ibn Idris al-Shafi'i",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Shafi'i fiqh tradition"
+    },
+    {
+      "id": "q19-016",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Which imam is associated with the Hanbali madhhab?",
+      "choices": [
+        "Ahmad ibn Hanbal",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanbali fiqh tradition"
+    },
+    {
+      "id": "q19-017",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Madhhabs: Which imam is associated with the Hanbali madhhab?",
+      "choices": [
+        "Ahmad ibn Hanbal",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanbali fiqh tradition"
+    },
+    {
+      "id": "q19-018",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Choose the correct answer: Which imam is associated with the Hanbali madhhab?",
+      "choices": [
+        "Ahmad ibn Hanbal",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanbali fiqh tradition"
+    },
+    {
+      "id": "q19-019",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Fiqh knowledge check — which imam is associated with the Hanbali madhhab?",
+      "choices": [
+        "Ahmad ibn Hanbal",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanbali fiqh tradition"
+    },
+    {
+      "id": "q19-020",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "In Sunni legal tradition, which imam is associated with the Hanbali madhhab?",
+      "choices": [
+        "Ahmad ibn Hanbal",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanbali fiqh tradition"
+    },
+    {
+      "id": "q19-021",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Which madhhab is named after Abu Hanifah?",
+      "choices": [
+        "Hanafi",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanafi fiqh tradition"
+    },
+    {
+      "id": "q19-022",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Madhhabs: Which madhhab is named after Abu Hanifah?",
+      "choices": [
+        "Hanafi",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanafi fiqh tradition"
+    },
+    {
+      "id": "q19-023",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Choose the correct answer: Which madhhab is named after Abu Hanifah?",
+      "choices": [
+        "Hanafi",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanafi fiqh tradition"
+    },
+    {
+      "id": "q19-024",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Fiqh knowledge check — which madhhab is named after Abu Hanifah?",
+      "choices": [
+        "Hanafi",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanafi fiqh tradition"
+    },
+    {
+      "id": "q19-025",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "In Sunni legal tradition, which madhhab is named after Abu Hanifah?",
+      "choices": [
+        "Hanafi",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanafi fiqh tradition"
+    },
+    {
+      "id": "q19-026",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Which madhhab is named after Imam Malik?",
+      "choices": [
+        "Maliki",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Maliki fiqh tradition"
+    },
+    {
+      "id": "q19-027",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Madhhabs: Which madhhab is named after Imam Malik?",
+      "choices": [
+        "Maliki",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Maliki fiqh tradition"
+    },
+    {
+      "id": "q19-028",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Choose the correct answer: Which madhhab is named after Imam Malik?",
+      "choices": [
+        "Maliki",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Maliki fiqh tradition"
+    },
+    {
+      "id": "q19-029",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Fiqh knowledge check — which madhhab is named after Imam Malik?",
+      "choices": [
+        "Maliki",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Maliki fiqh tradition"
+    },
+    {
+      "id": "q19-030",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "In Sunni legal tradition, which madhhab is named after Imam Malik?",
+      "choices": [
+        "Maliki",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Maliki fiqh tradition"
+    },
+    {
+      "id": "q19-031",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Which madhhab is named after Imam al-Shafi'i?",
+      "choices": [
+        "Shafi'i",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Shafi'i fiqh tradition"
+    },
+    {
+      "id": "q19-032",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Madhhabs: Which madhhab is named after Imam al-Shafi'i?",
+      "choices": [
+        "Shafi'i",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Shafi'i fiqh tradition"
+    },
+    {
+      "id": "q19-033",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Choose the correct answer: Which madhhab is named after Imam al-Shafi'i?",
+      "choices": [
+        "Shafi'i",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Shafi'i fiqh tradition"
+    },
+    {
+      "id": "q19-034",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Fiqh knowledge check — which madhhab is named after Imam al-Shafi'i?",
+      "choices": [
+        "Shafi'i",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Shafi'i fiqh tradition"
+    },
+    {
+      "id": "q19-035",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "In Sunni legal tradition, which madhhab is named after Imam al-Shafi'i?",
+      "choices": [
+        "Shafi'i",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Shafi'i fiqh tradition"
+    },
+    {
+      "id": "q19-036",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Which madhhab is named after Imam Ahmad ibn Hanbal?",
+      "choices": [
+        "Hanbali",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanbali fiqh tradition"
+    },
+    {
+      "id": "q19-037",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Madhhabs: Which madhhab is named after Imam Ahmad ibn Hanbal?",
+      "choices": [
+        "Hanbali",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanbali fiqh tradition"
+    },
+    {
+      "id": "q19-038",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Choose the correct answer: Which madhhab is named after Imam Ahmad ibn Hanbal?",
+      "choices": [
+        "Hanbali",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanbali fiqh tradition"
+    },
+    {
+      "id": "q19-039",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Fiqh knowledge check — which madhhab is named after Imam Ahmad ibn Hanbal?",
+      "choices": [
+        "Hanbali",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanbali fiqh tradition"
+    },
+    {
+      "id": "q19-040",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "In Sunni legal tradition, which madhhab is named after Imam Ahmad ibn Hanbal?",
+      "choices": [
+        "Hanbali",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Hanbali fiqh tradition"
+    },
+    {
+      "id": "q19-041",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "How many well-known Sunni legal madhhabs are commonly recognised?",
+      "choices": [
+        "Four",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunni fiqh tradition"
+    },
+    {
+      "id": "q19-042",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Madhhabs: How many well-known Sunni legal madhhabs are commonly recognised?",
+      "choices": [
+        "Four",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunni fiqh tradition"
+    },
+    {
+      "id": "q19-043",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Choose the correct answer: How many well-known Sunni legal madhhabs are commonly recognised?",
+      "choices": [
+        "Four",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunni fiqh tradition"
+    },
+    {
+      "id": "q19-044",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Fiqh knowledge check — how many well-known Sunni legal madhhabs are commonly recognised?",
+      "choices": [
+        "Four",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunni fiqh tradition"
+    },
+    {
+      "id": "q19-045",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "In Sunni legal tradition, how many well-known Sunni legal madhhabs are commonly recognised?",
+      "choices": [
+        "Four",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunni fiqh tradition"
+    },
+    {
+      "id": "q19-046",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "What is the purpose of a fiqh madhhab?",
+      "choices": [
+        "A method of deriving legal rulings from evidence",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunni fiqh tradition"
+    },
+    {
+      "id": "q19-047",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Madhhabs: What is the purpose of a fiqh madhhab?",
+      "choices": [
+        "A method of deriving legal rulings from evidence",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunni fiqh tradition"
+    },
+    {
+      "id": "q19-048",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Choose the correct answer: What is the purpose of a fiqh madhhab?",
+      "choices": [
+        "A method of deriving legal rulings from evidence",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunni fiqh tradition"
+    },
+    {
+      "id": "q19-049",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Fiqh knowledge check — what is the purpose of a fiqh madhhab?",
+      "choices": [
+        "A method of deriving legal rulings from evidence",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunni fiqh tradition"
+    },
+    {
+      "id": "q19-050",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "In Sunni legal tradition, what is the purpose of a fiqh madhhab?",
+      "choices": [
+        "A method of deriving legal rulings from evidence",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunni fiqh tradition"
+    }
+  ]
+}

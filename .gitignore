@@ -1,0 +1,23 @@
+# Secrets — never upload these
+.env
+
+# Database (user data stays local)
+*.sqlite3
+*.sqlite
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# AutoFix backups
+.autofix_backups/
+
+# Logs
+autofix_log.txt
+bot_log.txt
+
+# Temp files
+*.mp3
+*.ogg
+*.wav

@@ -1,0 +1,1404 @@
+{
+  "questions": [
+    {
+      "id": "q13-001",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Who was the first prophet mentioned in the Qur'an?",
+      "choices": [
+        "Adam",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:31"
+    },
+    {
+      "id": "q13-002",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet built the Ark by Allah's command?",
+      "choices": [
+        "Nuh",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 11:37"
+    },
+    {
+      "id": "q13-003",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was thrown into the fire by his people?",
+      "choices": [
+        "Ibrahim",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 21:68-69"
+    },
+    {
+      "id": "q13-004",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was commanded to sacrifice his son in a dream?",
+      "choices": [
+        "Ibrahim",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 37:102"
+    },
+    {
+      "id": "q13-005",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was given the ability to interpret dreams in Egypt?",
+      "choices": [
+        "Yusuf",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 12:36"
+    },
+    {
+      "id": "q13-006",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was sold for a small price?",
+      "choices": [
+        "Yusuf",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 12:20"
+    },
+    {
+      "id": "q13-007",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was placed in a chest and cast into the river?",
+      "choices": [
+        "Musa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 20:39"
+    },
+    {
+      "id": "q13-008",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet spoke to Allah at the appointed time?",
+      "choices": [
+        "Musa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:143"
+    },
+    {
+      "id": "q13-009",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was sent to Fir'awn?",
+      "choices": [
+        "Musa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 20:24"
+    },
+    {
+      "id": "q13-010",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was given the Zabur?",
+      "choices": [
+        "Dawud",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 17:55"
+    },
+    {
+      "id": "q13-011",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was taught the language of birds?",
+      "choices": [
+        "Sulayman",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 27:16"
+    },
+    {
+      "id": "q13-012",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet had the wind subjected to him?",
+      "choices": [
+        "Sulayman",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 21:81"
+    },
+    {
+      "id": "q13-013",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was tested with illness and called upon Allah?",
+      "choices": [
+        "Ayyub",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 21:83"
+    },
+    {
+      "id": "q13-014",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was swallowed by a great fish?",
+      "choices": [
+        "Yunus",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 37:142"
+    },
+    {
+      "id": "q13-015",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was raised to a high station?",
+      "choices": [
+        "Idris",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 19:57"
+    },
+    {
+      "id": "q13-016",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was sent to the people of 'Ad?",
+      "choices": [
+        "Hud",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:65"
+    },
+    {
+      "id": "q13-017",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was sent to Thamud?",
+      "choices": [
+        "Salih",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:73"
+    },
+    {
+      "id": "q13-018",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was sent to Madyan?",
+      "choices": [
+        "Shu'ayb",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:85"
+    },
+    {
+      "id": "q13-019",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was given a son named Yahya?",
+      "choices": [
+        "Zakariyya",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 19:7"
+    },
+    {
+      "id": "q13-020",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was born to Maryam?",
+      "choices": [
+        "Isa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:45"
+    },
+    {
+      "id": "q13-021",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet spoke in the cradle?",
+      "choices": [
+        "Isa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 19:29-30"
+    },
+    {
+      "id": "q13-022",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was given the Injil?",
+      "choices": [
+        "Isa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 5:46"
+    },
+    {
+      "id": "q13-023",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet's staff turned into a serpent?",
+      "choices": [
+        "Musa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:107"
+    },
+    {
+      "id": "q13-024",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet's people were destroyed by a mighty blast?",
+      "choices": [
+        "Salih",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:78"
+    },
+    {
+      "id": "q13-025",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet's people were destroyed by a furious wind?",
+      "choices": [
+        "Hud",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 41:16"
+    },
+    {
+      "id": "q13-026",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet's people were turned upside down?",
+      "choices": [
+        "Lut",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 11:82"
+    },
+    {
+      "id": "q13-027",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet prayed for a righteous son in old age?",
+      "choices": [
+        "Ibrahim",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 37:100"
+    },
+    {
+      "id": "q13-028",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet's father was named Azar in the Qur'an?",
+      "choices": [
+        "Ibrahim",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 6:74"
+    },
+    {
+      "id": "q13-029",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet saw eleven stars prostrate to him in a dream?",
+      "choices": [
+        "Yusuf",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 12:4"
+    },
+    {
+      "id": "q13-030",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet's brothers cast him into a well?",
+      "choices": [
+        "Yusuf",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 12:15"
+    },
+    {
+      "id": "q13-031",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was appointed as a messenger after leaving Egypt?",
+      "choices": [
+        "Musa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 20:14"
+    },
+    {
+      "id": "q13-032",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet asked Allah to make his brother a helper?",
+      "choices": [
+        "Musa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 20:29-32"
+    },
+    {
+      "id": "q13-033",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was a carpenter of the Ark?",
+      "choices": [
+        "Nuh",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 11:38"
+    },
+    {
+      "id": "q13-034",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was called Allah's khalil in the Qur'an?",
+      "choices": [
+        "Ibrahim",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 4:125"
+    },
+    {
+      "id": "q13-035",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was commanded to call the adhan for Hajj?",
+      "choices": [
+        "Ibrahim",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 22:27"
+    },
+    {
+      "id": "q13-036",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet rebuilt the foundations of the Ka'bah with his son?",
+      "choices": [
+        "Ibrahim",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:127"
+    },
+    {
+      "id": "q13-037",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet's son helped raise the Ka'bah?",
+      "choices": [
+        "Isma'il",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:127"
+    },
+    {
+      "id": "q13-038",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was given wisdom and decisive speech?",
+      "choices": [
+        "Dawud",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 38:20"
+    },
+    {
+      "id": "q13-039",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet judged the case of the field and sheep with his father?",
+      "choices": [
+        "Sulayman",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 21:78-79"
+    },
+    {
+      "id": "q13-040",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet received the kingdom after Dawud?",
+      "choices": [
+        "Sulayman",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:251-252"
+    },
+    {
+      "id": "q13-041",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet's kingdom included jinn?",
+      "choices": [
+        "Sulayman",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 34:12"
+    },
+    {
+      "id": "q13-042",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was sent to Nineveh according to the Qur'anic account?",
+      "choices": [
+        "Yunus",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 37:147"
+    },
+    {
+      "id": "q13-043",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet asked not to be left alone without an heir?",
+      "choices": [
+        "Zakariyya",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 21:89"
+    },
+    {
+      "id": "q13-044",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was given a son named Isma'il?",
+      "choices": [
+        "Ibrahim",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 14:39"
+    },
+    {
+      "id": "q13-045",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was given a son named Ishaq?",
+      "choices": [
+        "Ibrahim",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 11:71"
+    },
+    {
+      "id": "q13-046",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was given a son named Ya'qub?",
+      "choices": [
+        "Ishaq",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 11:71"
+    },
+    {
+      "id": "q13-047",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was known for beautiful patience after losing Yusuf?",
+      "choices": [
+        "Ya'qub",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 12:18"
+    },
+    {
+      "id": "q13-048",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet lost his sight from grief for Yusuf?",
+      "choices": [
+        "Ya'qub",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 12:84"
+    },
+    {
+      "id": "q13-049",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was the father of the Twelve Tribes?",
+      "choices": [
+        "Ya'qub",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:136"
+    },
+    {
+      "id": "q13-050",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet's people made a calf for worship?",
+      "choices": [
+        "Musa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 20:88"
+    },
+    {
+      "id": "q13-051",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet confronted the magicians of Fir'awn?",
+      "choices": [
+        "Musa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:113-120"
+    },
+    {
+      "id": "q13-052",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet struck the sea with his staff?",
+      "choices": [
+        "Musa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 26:63"
+    },
+    {
+      "id": "q13-053",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was given nine clear signs for Fir'awn?",
+      "choices": [
+        "Musa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 17:101"
+    },
+    {
+      "id": "q13-054",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was commanded to remove his sandals in the sacred valley?",
+      "choices": [
+        "Musa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 20:12"
+    },
+    {
+      "id": "q13-055",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was protected by a cloud during travel in the desert?",
+      "choices": [
+        "Musa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:57"
+    },
+    {
+      "id": "q13-056",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet's people received manna and quails?",
+      "choices": [
+        "Musa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:57"
+    },
+    {
+      "id": "q13-057",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet spoke to the Queen of Sheba by letter?",
+      "choices": [
+        "Sulayman",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 27:28"
+    },
+    {
+      "id": "q13-058",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet heard the speech of an ant?",
+      "choices": [
+        "Sulayman",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 27:18-19"
+    },
+    {
+      "id": "q13-059",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet had mountains and birds glorify with him?",
+      "choices": [
+        "Dawud",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 21:79"
+    },
+    {
+      "id": "q13-060",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was taught how to make coats of mail?",
+      "choices": [
+        "Dawud",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 21:80"
+    },
+    {
+      "id": "q13-061",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was tested by two disputants who climbed the wall?",
+      "choices": [
+        "Dawud",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 38:21-24"
+    },
+    {
+      "id": "q13-062",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was granted a kingdom no one after him would have?",
+      "choices": [
+        "Sulayman",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 38:35"
+    },
+    {
+      "id": "q13-063",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was told to strike the ground for water and washing?",
+      "choices": [
+        "Ayyub",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 38:42"
+    },
+    {
+      "id": "q13-064",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was commanded to take a bundle of grass in his oath?",
+      "choices": [
+        "Ayyub",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 38:44"
+    },
+    {
+      "id": "q13-065",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was called Dhun-Nun?",
+      "choices": [
+        "Yunus",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 21:87"
+    },
+    {
+      "id": "q13-066",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet called his Lord from darkness?",
+      "choices": [
+        "Yunus",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 21:87"
+    },
+    {
+      "id": "q13-067",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet's people believed and benefited after seeing punishment signs?",
+      "choices": [
+        "Yunus",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 10:98"
+    },
+    {
+      "id": "q13-068",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was described as truthful and a prophet with his son?",
+      "choices": [
+        "Isma'il",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 19:54"
+    },
+    {
+      "id": "q13-069",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was described as patient in the Qur'an with Ayyub?",
+      "choices": [
+        "Isma'il",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 21:85"
+    },
+    {
+      "id": "q13-070",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was mentioned as truthful and a prophet in Surah Maryam?",
+      "choices": [
+        "Idris",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 19:56"
+    },
+    {
+      "id": "q13-071",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was given judgement and knowledge as a child?",
+      "choices": [
+        "Yahya",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 19:12"
+    },
+    {
+      "id": "q13-072",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was commanded to be dutiful to his mother?",
+      "choices": [
+        "Isa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 19:32"
+    },
+    {
+      "id": "q13-073",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was strengthened with the Holy Spirit?",
+      "choices": [
+        "Isa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:87"
+    },
+    {
+      "id": "q13-074",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet healed the blind and leper by Allah's permission?",
+      "choices": [
+        "Isa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:49"
+    },
+    {
+      "id": "q13-075",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet made a bird from clay by Allah's permission?",
+      "choices": [
+        "Isa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:49"
+    },
+    {
+      "id": "q13-076",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet foretold a messenger named Ahmad?",
+      "choices": [
+        "Isa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 61:6"
+    },
+    {
+      "id": "q13-077",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet's disciples asked for a table spread from heaven?",
+      "choices": [
+        "Isa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 5:112"
+    },
+    {
+      "id": "q13-078",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was raised by Allah according to 4:158?",
+      "choices": [
+        "Isa",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 4:158"
+    },
+    {
+      "id": "q13-079",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet is called the seal of the prophets?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 33:40"
+    },
+    {
+      "id": "q13-080",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet received the Qur'an?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 17:106"
+    },
+    {
+      "id": "q13-081",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was commanded to say he is only a human like others receiving revelation?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 18:110"
+    },
+    {
+      "id": "q13-082",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was sent to all mankind?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 34:28"
+    },
+    {
+      "id": "q13-083",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was sent as a mercy to the worlds?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 21:107"
+    },
+    {
+      "id": "q13-084",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was told to consult companions in affairs?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:159"
+    },
+    {
+      "id": "q13-085",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet's Night Journey is mentioned in 17:1?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 17:1"
+    },
+    {
+      "id": "q13-086",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet received the opening verses of Surah Al-'Alaq?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 96:1-5"
+    },
+    {
+      "id": "q13-087",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was commanded to warn his closest relatives?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 26:214"
+    },
+    {
+      "id": "q13-088",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was protected at Badr by angelic support?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:123-124"
+    },
+    {
+      "id": "q13-089",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet emigrated with the companion in the cave?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:40"
+    },
+    {
+      "id": "q13-090",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was described as unlettered in the Qur'an?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:157"
+    },
+    {
+      "id": "q13-091",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was sent with guidance and the religion of truth?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:33"
+    },
+    {
+      "id": "q13-092",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was commanded to recite what was revealed and establish prayer?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 29:45"
+    },
+    {
+      "id": "q13-093",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was told to seek increase in knowledge?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 20:114"
+    },
+    {
+      "id": "q13-094",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was told that Allah had forgiven his past and future shortcomings?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 48:2"
+    },
+    {
+      "id": "q13-095",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was sent as a witness, bearer of good news and warner?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 33:45"
+    },
+    {
+      "id": "q13-096",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet received Surah Al-Fath after the clear victory?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 48:1"
+    },
+    {
+      "id": "q13-097",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet is addressed as Al-Muzzammil?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 73:1"
+    },
+    {
+      "id": "q13-098",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet is addressed as Al-Muddaththir?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 74:1"
+    },
+    {
+      "id": "q13-099",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was instructed to proclaim what he was commanded?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 15:94"
+    },
+    {
+      "id": "q13-100",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet's name appears in Surah Muhammad?",
+      "choices": [
+        "Muhammad",
+        "a market",
+        "a crown",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 47:2"
+    }
+  ]
+}

@@ -1,0 +1,704 @@
+{
+  "questions": [
+    {
+      "id": "q18-001",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "In which city was the Prophet Muhammad born?",
+      "choices": [
+        "Makkah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 90:1; Seerah sources"
+    },
+    {
+      "id": "q18-002",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Choose the correct answer: In which city was the Prophet Muhammad born?",
+      "choices": [
+        "Makkah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 90:1; Seerah sources"
+    },
+    {
+      "id": "q18-003",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Knowledge check — in which city was the Prophet Muhammad born?",
+      "choices": [
+        "Makkah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 90:1; Seerah sources"
+    },
+    {
+      "id": "q18-004",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "From the stated source, in which city was the Prophet Muhammad born?",
+      "choices": [
+        "Makkah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 90:1; Seerah sources"
+    },
+    {
+      "id": "q18-005",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Advanced quiz: In which city was the Prophet Muhammad born?",
+      "choices": [
+        "Makkah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 90:1; Seerah sources"
+    },
+    {
+      "id": "q18-006",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "To which city did the Prophet migrate?",
+      "choices": [
+        "Madinah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:100"
+    },
+    {
+      "id": "q18-007",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Choose the correct answer: To which city did the Prophet migrate?",
+      "choices": [
+        "Madinah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:100"
+    },
+    {
+      "id": "q18-008",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Knowledge check — to which city did the Prophet migrate?",
+      "choices": [
+        "Madinah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:100"
+    },
+    {
+      "id": "q18-009",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "From the stated source, to which city did the Prophet migrate?",
+      "choices": [
+        "Madinah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:100"
+    },
+    {
+      "id": "q18-010",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Advanced quiz: To which city did the Prophet migrate?",
+      "choices": [
+        "Madinah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:100"
+    },
+    {
+      "id": "q18-011",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "What is the migration from Makkah to Madinah called?",
+      "choices": [
+        "The Hijrah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:100"
+    },
+    {
+      "id": "q18-012",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Choose the correct answer: What is the migration from Makkah to Madinah called?",
+      "choices": [
+        "The Hijrah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:100"
+    },
+    {
+      "id": "q18-013",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Knowledge check — what is the migration from Makkah to Madinah called?",
+      "choices": [
+        "The Hijrah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:100"
+    },
+    {
+      "id": "q18-014",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "From the stated source, what is the migration from Makkah to Madinah called?",
+      "choices": [
+        "The Hijrah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:100"
+    },
+    {
+      "id": "q18-015",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Advanced quiz: What is the migration from Makkah to Madinah called?",
+      "choices": [
+        "The Hijrah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:100"
+    },
+    {
+      "id": "q18-016",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Who accompanied the Prophet in the cave during the Hijrah?",
+      "choices": [
+        "Abu Bakr",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:40"
+    },
+    {
+      "id": "q18-017",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Choose the correct answer: Who accompanied the Prophet in the cave during the Hijrah?",
+      "choices": [
+        "Abu Bakr",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:40"
+    },
+    {
+      "id": "q18-018",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Knowledge check — who accompanied the Prophet in the cave during the Hijrah?",
+      "choices": [
+        "Abu Bakr",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:40"
+    },
+    {
+      "id": "q18-019",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "From the stated source, who accompanied the Prophet in the cave during the Hijrah?",
+      "choices": [
+        "Abu Bakr",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:40"
+    },
+    {
+      "id": "q18-020",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Advanced quiz: Who accompanied the Prophet in the cave during the Hijrah?",
+      "choices": [
+        "Abu Bakr",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:40"
+    },
+    {
+      "id": "q18-021",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "What was the first major battle of Islam?",
+      "choices": [
+        "Badr",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:123"
+    },
+    {
+      "id": "q18-022",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Choose the correct answer: What was the first major battle of Islam?",
+      "choices": [
+        "Badr",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:123"
+    },
+    {
+      "id": "q18-023",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Knowledge check — what was the first major battle of Islam?",
+      "choices": [
+        "Badr",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:123"
+    },
+    {
+      "id": "q18-024",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "From the stated source, what was the first major battle of Islam?",
+      "choices": [
+        "Badr",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:123"
+    },
+    {
+      "id": "q18-025",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Advanced quiz: What was the first major battle of Islam?",
+      "choices": [
+        "Badr",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:123"
+    },
+    {
+      "id": "q18-026",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "What battle is referred to when some companions fled in 3:153?",
+      "choices": [
+        "Uhud",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:153"
+    },
+    {
+      "id": "q18-027",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Choose the correct answer: What battle is referred to when some companions fled in 3:153?",
+      "choices": [
+        "Uhud",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:153"
+    },
+    {
+      "id": "q18-028",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Knowledge check — what battle is referred to when some companions fled in 3:153?",
+      "choices": [
+        "Uhud",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:153"
+    },
+    {
+      "id": "q18-029",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "From the stated source, what battle is referred to when some companions fled in 3:153?",
+      "choices": [
+        "Uhud",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:153"
+    },
+    {
+      "id": "q18-030",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Advanced quiz: What battle is referred to when some companions fled in 3:153?",
+      "choices": [
+        "Uhud",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 3:153"
+    },
+    {
+      "id": "q18-031",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "What treaty is described as a clear victory in Surah al-Fath?",
+      "choices": [
+        "Hudaybiyyah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 48:1"
+    },
+    {
+      "id": "q18-032",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Choose the correct answer: What treaty is described as a clear victory in Surah al-Fath?",
+      "choices": [
+        "Hudaybiyyah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 48:1"
+    },
+    {
+      "id": "q18-033",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Knowledge check — what treaty is described as a clear victory in Surah al-Fath?",
+      "choices": [
+        "Hudaybiyyah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 48:1"
+    },
+    {
+      "id": "q18-034",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "From the stated source, what treaty is described as a clear victory in Surah al-Fath?",
+      "choices": [
+        "Hudaybiyyah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 48:1"
+    },
+    {
+      "id": "q18-035",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Advanced quiz: What treaty is described as a clear victory in Surah al-Fath?",
+      "choices": [
+        "Hudaybiyyah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 48:1"
+    },
+    {
+      "id": "q18-036",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "What was the name of the Prophet's final pilgrimage?",
+      "choices": [
+        "The Farewell Pilgrimage",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q18-037",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Choose the correct answer: What was the name of the Prophet's final pilgrimage?",
+      "choices": [
+        "The Farewell Pilgrimage",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q18-038",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Knowledge check — what was the name of the Prophet's final pilgrimage?",
+      "choices": [
+        "The Farewell Pilgrimage",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q18-039",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "From the stated source, what was the name of the Prophet's final pilgrimage?",
+      "choices": [
+        "The Farewell Pilgrimage",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q18-040",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Advanced quiz: What was the name of the Prophet's final pilgrimage?",
+      "choices": [
+        "The Farewell Pilgrimage",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q18-041",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "What mosque was built by the Prophet after arriving in Madinah?",
+      "choices": [
+        "Al-Masjid al-Nabawi",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari"
+    },
+    {
+      "id": "q18-042",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Choose the correct answer: What mosque was built by the Prophet after arriving in Madinah?",
+      "choices": [
+        "Al-Masjid al-Nabawi",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari"
+    },
+    {
+      "id": "q18-043",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Knowledge check — what mosque was built by the Prophet after arriving in Madinah?",
+      "choices": [
+        "Al-Masjid al-Nabawi",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari"
+    },
+    {
+      "id": "q18-044",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "From the stated source, what mosque was built by the Prophet after arriving in Madinah?",
+      "choices": [
+        "Al-Masjid al-Nabawi",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari"
+    },
+    {
+      "id": "q18-045",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Advanced quiz: What mosque was built by the Prophet after arriving in Madinah?",
+      "choices": [
+        "Al-Masjid al-Nabawi",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari"
+    },
+    {
+      "id": "q18-046",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "What is the first revelation command?",
+      "choices": [
+        "Read",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 96:1"
+    },
+    {
+      "id": "q18-047",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Choose the correct answer: What is the first revelation command?",
+      "choices": [
+        "Read",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 96:1"
+    },
+    {
+      "id": "q18-048",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Knowledge check — what is the first revelation command?",
+      "choices": [
+        "Read",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 96:1"
+    },
+    {
+      "id": "q18-049",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "From the stated source, what is the first revelation command?",
+      "choices": [
+        "Read",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 96:1"
+    },
+    {
+      "id": "q18-050",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Advanced quiz: What is the first revelation command?",
+      "choices": [
+        "Read",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 96:1"
+    }
+  ]
+}

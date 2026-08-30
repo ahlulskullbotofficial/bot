@@ -1,0 +1,704 @@
+{
+  "questions": [
+    {
+      "id": "q15-001",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Where did Allah rise over after creating the heavens and earth?",
+      "choices": [
+        "The Throne",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:54"
+    },
+    {
+      "id": "q15-002",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Choose the correct answer: Where did Allah rise over after creating the heavens and earth?",
+      "choices": [
+        "The Throne",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:54"
+    },
+    {
+      "id": "q15-003",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Knowledge check — where did Allah rise over after creating the heavens and earth?",
+      "choices": [
+        "The Throne",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:54"
+    },
+    {
+      "id": "q15-004",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "From the stated source, where did Allah rise over after creating the heavens and earth?",
+      "choices": [
+        "The Throne",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:54"
+    },
+    {
+      "id": "q15-005",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Advanced quiz: Where did Allah rise over after creating the heavens and earth?",
+      "choices": [
+        "The Throne",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:54"
+    },
+    {
+      "id": "q15-006",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "What must be affirmed for Allah without distortion, denial, asking how, or likeness?",
+      "choices": [
+        "His Names and Attributes",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:180"
+    },
+    {
+      "id": "q15-007",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Choose the correct answer: What must be affirmed for Allah without distortion, denial, asking how, or likeness?",
+      "choices": [
+        "His Names and Attributes",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:180"
+    },
+    {
+      "id": "q15-008",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Knowledge check — what must be affirmed for Allah without distortion, denial, asking how, or likeness?",
+      "choices": [
+        "His Names and Attributes",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:180"
+    },
+    {
+      "id": "q15-009",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "From the stated source, what must be affirmed for Allah without distortion, denial, asking how, or likeness?",
+      "choices": [
+        "His Names and Attributes",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:180"
+    },
+    {
+      "id": "q15-010",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Advanced quiz: What must be affirmed for Allah without distortion, denial, asking how, or likeness?",
+      "choices": [
+        "His Names and Attributes",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:180"
+    },
+    {
+      "id": "q15-011",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "What does the Qur'an say is like Allah?",
+      "choices": [
+        "Nothing",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 42:11"
+    },
+    {
+      "id": "q15-012",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Choose the correct answer: What does the Qur'an say is like Allah?",
+      "choices": [
+        "Nothing",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 42:11"
+    },
+    {
+      "id": "q15-013",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Knowledge check — what does the Qur'an say is like Allah?",
+      "choices": [
+        "Nothing",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 42:11"
+    },
+    {
+      "id": "q15-014",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "From the stated source, what does the Qur'an say is like Allah?",
+      "choices": [
+        "Nothing",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 42:11"
+    },
+    {
+      "id": "q15-015",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Advanced quiz: What does the Qur'an say is like Allah?",
+      "choices": [
+        "Nothing",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 42:11"
+    },
+    {
+      "id": "q15-016",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "What did Allah create everything with?",
+      "choices": [
+        "Decree",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 54:49"
+    },
+    {
+      "id": "q15-017",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Choose the correct answer: What did Allah create everything with?",
+      "choices": [
+        "Decree",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 54:49"
+    },
+    {
+      "id": "q15-018",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Knowledge check — what did Allah create everything with?",
+      "choices": [
+        "Decree",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 54:49"
+    },
+    {
+      "id": "q15-019",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "From the stated source, what did Allah create everything with?",
+      "choices": [
+        "Decree",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 54:49"
+    },
+    {
+      "id": "q15-020",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Advanced quiz: What did Allah create everything with?",
+      "choices": [
+        "Decree",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 54:49"
+    },
+    {
+      "id": "q15-021",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "What is a quality of the believers in 2:3?",
+      "choices": [
+        "Belief in the unseen",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:3"
+    },
+    {
+      "id": "q15-022",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Choose the correct answer: What is a quality of the believers in 2:3?",
+      "choices": [
+        "Belief in the unseen",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:3"
+    },
+    {
+      "id": "q15-023",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Knowledge check — what is a quality of the believers in 2:3?",
+      "choices": [
+        "Belief in the unseen",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:3"
+    },
+    {
+      "id": "q15-024",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "From the stated source, what is a quality of the believers in 2:3?",
+      "choices": [
+        "Belief in the unseen",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:3"
+    },
+    {
+      "id": "q15-025",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Advanced quiz: What is a quality of the believers in 2:3?",
+      "choices": [
+        "Belief in the unseen",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:3"
+    },
+    {
+      "id": "q15-026",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "To whom belongs all intercession?",
+      "choices": [
+        "Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 39:44"
+    },
+    {
+      "id": "q15-027",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Choose the correct answer: To whom belongs all intercession?",
+      "choices": [
+        "Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 39:44"
+    },
+    {
+      "id": "q15-028",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Knowledge check — to whom belongs all intercession?",
+      "choices": [
+        "Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 39:44"
+    },
+    {
+      "id": "q15-029",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "From the stated source, to whom belongs all intercession?",
+      "choices": [
+        "Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 39:44"
+    },
+    {
+      "id": "q15-030",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Advanced quiz: To whom belongs all intercession?",
+      "choices": [
+        "Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 39:44"
+    },
+    {
+      "id": "q15-031",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "What did the Prophet make the polytheist hear in 9:6?",
+      "choices": [
+        "The word of Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:6"
+    },
+    {
+      "id": "q15-032",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Choose the correct answer: What did the Prophet make the polytheist hear in 9:6?",
+      "choices": [
+        "The word of Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:6"
+    },
+    {
+      "id": "q15-033",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Knowledge check — what did the Prophet make the polytheist hear in 9:6?",
+      "choices": [
+        "The word of Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:6"
+    },
+    {
+      "id": "q15-034",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "From the stated source, what did the Prophet make the polytheist hear in 9:6?",
+      "choices": [
+        "The word of Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:6"
+    },
+    {
+      "id": "q15-035",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Advanced quiz: What did the Prophet make the polytheist hear in 9:6?",
+      "choices": [
+        "The word of Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 9:6"
+    },
+    {
+      "id": "q15-036",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Whom did Allah create jinn and mankind to worship?",
+      "choices": [
+        "Allah alone",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 51:56"
+    },
+    {
+      "id": "q15-037",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Choose the correct answer: Whom did Allah create jinn and mankind to worship?",
+      "choices": [
+        "Allah alone",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 51:56"
+    },
+    {
+      "id": "q15-038",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Knowledge check — whom did Allah create jinn and mankind to worship?",
+      "choices": [
+        "Allah alone",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 51:56"
+    },
+    {
+      "id": "q15-039",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "From the stated source, whom did Allah create jinn and mankind to worship?",
+      "choices": [
+        "Allah alone",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 51:56"
+    },
+    {
+      "id": "q15-040",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Advanced quiz: Whom did Allah create jinn and mankind to worship?",
+      "choices": [
+        "Allah alone",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 51:56"
+    },
+    {
+      "id": "q15-041",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "What should be called upon by Allah's most beautiful Names?",
+      "choices": [
+        "Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:180"
+    },
+    {
+      "id": "q15-042",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Choose the correct answer: What should be called upon by Allah's most beautiful Names?",
+      "choices": [
+        "Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:180"
+    },
+    {
+      "id": "q15-043",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Knowledge check — what should be called upon by Allah's most beautiful Names?",
+      "choices": [
+        "Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:180"
+    },
+    {
+      "id": "q15-044",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "From the stated source, what should be called upon by Allah's most beautiful Names?",
+      "choices": [
+        "Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:180"
+    },
+    {
+      "id": "q15-045",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Advanced quiz: What should be called upon by Allah's most beautiful Names?",
+      "choices": [
+        "Allah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 7:180"
+    },
+    {
+      "id": "q15-046",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "What will radiant faces be looking at in 75:22-23?",
+      "choices": [
+        "Their Lord",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 75:22-23"
+    },
+    {
+      "id": "q15-047",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Choose the correct answer: What will radiant faces be looking at in 75:22-23?",
+      "choices": [
+        "Their Lord",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 75:22-23"
+    },
+    {
+      "id": "q15-048",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Knowledge check — what will radiant faces be looking at in 75:22-23?",
+      "choices": [
+        "Their Lord",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 75:22-23"
+    },
+    {
+      "id": "q15-049",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "From the stated source, what will radiant faces be looking at in 75:22-23?",
+      "choices": [
+        "Their Lord",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 75:22-23"
+    },
+    {
+      "id": "q15-050",
+      "level": "advanced",
+      "category": "Athari Creed",
+      "prompt": "Advanced quiz: What will radiant faces be looking at in 75:22-23?",
+      "choices": [
+        "Their Lord",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 75:22-23"
+    }
+  ]
+}

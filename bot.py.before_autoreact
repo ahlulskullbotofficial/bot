@@ -1,0 +1,72 @@
+import asyncio
+import threading
+
+import discord
+from discord.ext import commands
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+bot_loop = None
+console_started = False
+
+
+def send_from_console():
+    """Read messages from Command Prompt and post them as the bot."""
+    print("Console ready. Type: channel-name | your message")
+    print("You can also use a channel ID. Type /quit to stop the bot.")
+
+    while True:
+        try:
+            entry = input("send> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            break
+
+        if entry.lower() == "/quit":
+            asyncio.run_coroutine_threadsafe(bot.close(), bot_loop)
+            break
+
+        if "|" not in entry:
+            print("Format: channel-name | your message")
+            continue
+
+        channel_input, message = (part.strip() for part in entry.split("|", 1))
+        if not channel_input or not message:
+            print("Please provide both a channel and a message.")
+            continue
+
+        channel = None
+        if channel_input.isdigit():
+            channel = bot.get_channel(int(channel_input))
+        else:
+            channel = discord.utils.get(bot.get_all_channels(), name=channel_input)
+
+        if channel is None or not hasattr(channel, "send"):
+            print(f"Channel not found: {channel_input}")
+            continue
+
+        future = asyncio.run_coroutine_threadsafe(channel.send(message), bot_loop)
+        try:
+            future.result()
+            print(f"Sent to #{channel.name}")
+        except Exception as error:
+            print(f"Could not send the message: {error}")
+
+
+@bot.event
+async def on_ready():
+    global bot_loop, console_started
+    bot_loop = asyncio.get_running_loop()
+    print(f"Bot is online as {bot.user}")
+    if not console_started:
+        console_started = True
+        threading.Thread(target=send_from_console, daemon=True).start()
+
+
+@bot.command()
+async def hello(ctx):
+    await ctx.send("Hello! 👋")
+
+
+bot.run("MTUyNTE1OTMxMDcwNTk1NDkxMA.GAhaN3.6_6d6JRl0ckEmEb4SeKCUowbrak3gC-BAkX8Iw")

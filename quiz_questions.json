@@ -1,0 +1,131 @@
+{
+  "questions": [
+    {
+      "id": "quran-001",
+      "level": "advanced",
+      "category": "Qur'an",
+      "prompt": "Which surah contains the longest verse in the Qur'an?",
+      "choices": ["Al-Baqarah", "An-Nisa", "Al-Ma'idah", "At-Tawbah"],
+      "correct": 0,
+      "source": "Qur'an 2:282",
+      "note": "The verse is commonly known as Ayat ad-Dayn (the verse of debt)."
+    },
+    {
+      "id": "quran-002",
+      "level": "intermediate",
+      "category": "Qur'an",
+      "prompt": "Which prophet is mentioned by name most often in the Qur'an?",
+      "choices": ["Ibrahim", "Musa", "Nuh", "Isa"],
+      "correct": 1,
+      "source": "Qur'anic concordances; see, e.g., Qur'an 2:51–61"
+    },
+    {
+      "id": "quran-003",
+      "level": "advanced",
+      "category": "Qur'an",
+      "prompt": "Which surah is the only one named after a woman?",
+      "choices": ["Maryam", "An-Nisa", "Al-Mujadilah", "At-Talaq"],
+      "correct": 0,
+      "source": "Surah Maryam (Qur'an 19)"
+    },
+    {
+      "id": "hadith-001",
+      "level": "intermediate",
+      "category": "Hadith",
+      "prompt": "Which Companion narrated the hadith: 'Actions are but by intentions'?",
+      "choices": ["Abu Hurayrah", "Umar ibn al-Khattab", "Aishah", "Ibn Abbas"],
+      "correct": 1,
+      "source": "Sahih al-Bukhari, Hadith 1; Sahih Muslim, Hadith 1907"
+    },
+    {
+      "id": "hadith-002",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "In the hadith of Jibril, which item is not one of the pillars of iman?",
+      "choices": ["Belief in angels", "Belief in the Last Day", "Fasting Ramadan", "Belief in divine decree"],
+      "correct": 2,
+      "source": "Sahih Muslim, Hadith 8"
+    },
+    {
+      "id": "seerah-001",
+      "level": "advanced",
+      "category": "Sirah",
+      "prompt": "Which Companion was sent to Yathrib before the Hijrah to teach the Qur'an?",
+      "choices": ["Mus'ab ibn Umayr", "Mu'adh ibn Jabal", "Bilal ibn Rabah", "Zayd ibn Thabit"],
+      "correct": 0,
+      "source": "Ibn Hisham, Al-Sirah al-Nabawiyyah, accounts of the First Pledge of Aqabah"
+    },
+    {
+      "id": "seerah-002",
+      "level": "intermediate",
+      "category": "Sirah",
+      "prompt": "Who was the Prophet's companion in the Cave of Thawr during the Hijrah?",
+      "choices": ["Umar ibn al-Khattab", "Ali ibn Abi Talib", "Abu Bakr as-Siddiq", "Uthman ibn Affan"],
+      "correct": 2,
+      "source": "Qur'an 9:40; Sahih al-Bukhari, Book of the Merits of the Companions"
+    },
+    {
+      "id": "aqidah-001",
+      "level": "advanced",
+      "category": "Aqidah",
+      "prompt": "In Athari terminology, what is the approach to Allah's attributes?",
+      "choices": ["Affirm them as revealed without asking how", "Deny all attributes", "Interpret every attribute figuratively", "Compare them to creation"],
+      "correct": 0,
+      "source": "Qur'an 42:11; Imam Malik's reported statement on istiwan"
+    },
+    {
+      "id": "aqidah-002",
+      "level": "advanced",
+      "category": "Aqidah",
+      "prompt": "Which Qur'anic phrase is cited to negate likeness between Allah and creation?",
+      "choices": ["Allahu Akbar", "La ilaha illa Allah", "Laysa kamithlihi shay'", "Hasbunallahu wa ni'mal wakil"],
+      "correct": 2,
+      "source": "Qur'an 42:11"
+    },
+    {
+      "id": "madhhab-001",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Which imam is traditionally associated with Al-Muwatta'?",
+      "choices": ["Abu Hanifah", "Malik ibn Anas", "Ash-Shafi'i", "Ahmad ibn Hanbal"],
+      "correct": 1,
+      "source": "Malik ibn Anas, Al-Muwatta'"
+    },
+    {
+      "id": "madhhab-002",
+      "level": "advanced",
+      "category": "Madhhabs",
+      "prompt": "Which imam authored Ar-Risalah, a foundational work in usul al-fiqh?",
+      "choices": ["Abu Hanifah", "Malik ibn Anas", "Muhammad ibn Idris ash-Shafi'i", "Ahmad ibn Hanbal"],
+      "correct": 2,
+      "source": "Muhammad ibn Idris ash-Shafi'i, Ar-Risalah"
+    },
+    {
+      "id": "sahabah-001",
+      "level": "intermediate",
+      "category": "Sahabah",
+      "prompt": "Which Companion was known by the title Dhu an-Nurayn?",
+      "choices": ["Uthman ibn Affan", "Ali ibn Abi Talib", "Talhah ibn Ubaydillah", "Az-Zubayr ibn al-Awwam"],
+      "correct": 0,
+      "source": "Sahih al-Bukhari, Book of the Merits of the Companions"
+    },
+    {
+      "id": "prophets-001",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet is described in the Qur'an as having been swallowed by a great fish?",
+      "choices": ["Yunus", "Ayyub", "Hud", "Salih"],
+      "correct": 0,
+      "source": "Qur'an 37:139–148"
+    },
+    {
+      "id": "prophets-002",
+      "level": "advanced",
+      "category": "Prophets",
+      "prompt": "Which prophet was given the ability to understand the speech of birds?",
+      "choices": ["Dawud", "Sulayman", "Zakariyya", "Yusuf"],
+      "correct": 1,
+      "source": "Qur'an 27:16"
+    }
+  ]
+}

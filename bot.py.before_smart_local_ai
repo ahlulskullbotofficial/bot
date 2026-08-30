@@ -1,0 +1,213 @@
+import asyncio
+import json
+import urllib.error
+import urllib.request
+import threading
+from pathlib import Path
+from collections import defaultdict, deque
+
+import discord
+from discord.ext import commands
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+bot_loop = None
+console_started = False
+autoreact_file = Path(__file__).with_name("autoreact_users.json")
+
+
+def load_autoreact_users():
+    try:
+        saved_data = json.loads(autoreact_file.read_text(encoding="utf-8"))
+        return {int(user_id) for user_id in saved_data.get("user_ids", [])}
+    except (FileNotFoundError, ValueError, TypeError):
+        return set()
+
+
+def save_autoreact_users():
+    autoreact_file.write_text(
+        json.dumps({"user_ids": sorted(autoreact_users)}, indent=2),
+        encoding="utf-8",
+    )
+
+
+autoreact_users = load_autoreact_users()
+
+
+OLLAMA_MODEL = "llama3.2:1b"
+OLLAMA_URL = "http://127.0.0.1:11434/api/chat"
+AI_INSTRUCTIONS = """
+You are a welcoming assistant for a Muslim Discord server. Speak in a playful
+British roadman style: concise, confident, witty, and a little cheeky. Your
+swagger is clearly playful, never cruel. Respect Islamic manners and every
+member of the community. Do not insult, harass, use slurs, shame people, make
+sectarian claims, or present yourself as a scholar. For religious questions,
+answer carefully and say that a qualified local imam or scholar is best for
+personal rulings. Use phrases such as insha'Allah or alhamdulillah only when
+they fit naturally. Never claim to be Muslim or speak on behalf of Islam.
+Keep replies below 350 characters unless the user genuinely needs more detail.
+"""
+ai_history = defaultdict(lambda: deque(maxlen=8))
+
+
+def make_ai_reply(history, user_message):
+    payload = {
+        "model": OLLAMA_MODEL,
+        "messages": [{"role": "system", "content": AI_INSTRUCTIONS}]
+        + history
+        + [{"role": "user", "content": user_message}],
+        "stream": False,
+        "options": {"num_predict": 180},
+    }
+    request = urllib.request.Request(
+        OLLAMA_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=120) as response:
+        response_data = json.loads(response.read().decode("utf-8"))
+    return response_data["message"]["content"].strip()
+
+
+async def is_reply_to_bot(message):
+    if not message.reference or not message.reference.message_id:
+        return False
+
+    replied_message = message.reference.resolved
+    if replied_message is None:
+        try:
+            replied_message = await message.channel.fetch_message(
+                message.reference.message_id
+            )
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            return False
+
+    return bool(bot.user and replied_message.author.id == bot.user.id)
+
+
+async def answer_with_ai(message):
+    user_message = message.content
+    if bot.user:
+        user_message = user_message.replace(bot.user.mention, "")
+        user_message = user_message.replace(f"<@!{bot.user.id}>", "")
+    user_message = user_message.strip() or "Reply briefly to the message above."
+
+    history_key = f"{message.channel.id}:{message.author.id}"
+    history = list(ai_history[history_key])
+
+    try:
+        async with message.channel.typing():
+            reply = await asyncio.to_thread(make_ai_reply, history, user_message)
+    except (urllib.error.URLError, TimeoutError) as error:
+        print(f"Local AI connection failed: {error}")
+        await message.reply("Local AI is not running yet. Ask an admin to start Ollama.")
+        return
+    except Exception as error:
+        print(f"Local AI request failed: {error}")
+        await message.reply("Oi, the local AI is having a moment. Try again shortly.")
+        return
+
+    if not reply:
+        reply = "I'm drawing a blank for a sec. Try that again, yeah?"
+    reply = reply[:1900]
+    ai_history[history_key].append({"role": "user", "content": user_message})
+    ai_history[history_key].append({"role": "assistant", "content": reply})
+    await message.reply(reply, mention_author=False)
+
+
+
+
+def send_from_console():
+    """Read messages from Command Prompt and post them as the bot."""
+    print("Console ready. Type: channel-name | your message")
+    print("You can also use a channel ID. Type /quit to stop the bot.")
+
+    while True:
+        try:
+            entry = input("send> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            break
+
+        if entry.lower() == "/quit":
+            asyncio.run_coroutine_threadsafe(bot.close(), bot_loop)
+            break
+
+        if "|" not in entry:
+            print("Format: channel-name | your message")
+            continue
+
+        channel_input, message = (part.strip() for part in entry.split("|", 1))
+        if not channel_input or not message:
+            print("Please provide both a channel and a message.")
+            continue
+
+        channel = None
+        if channel_input.isdigit():
+            channel = bot.get_channel(int(channel_input))
+        else:
+            channel = discord.utils.get(bot.get_all_channels(), name=channel_input)
+
+        if channel is None or not hasattr(channel, "send"):
+            print(f"Channel not found: {channel_input}")
+            continue
+
+        future = asyncio.run_coroutine_threadsafe(channel.send(message), bot_loop)
+        try:
+            future.result()
+            print(f"Sent to #{channel.name}")
+        except Exception as error:
+            print(f"Could not send the message: {error}")
+
+
+@bot.event
+async def on_ready():
+    global bot_loop, console_started
+    bot_loop = asyncio.get_running_loop()
+    print(f"Bot is online as {bot.user}")
+    if not console_started:
+        console_started = True
+        threading.Thread(target=send_from_console, daemon=True).start()
+
+
+@bot.command()
+async def hello(ctx):
+    await ctx.send("Hello! 👋")
+
+
+@bot.command()
+async def autoreacton(ctx):
+    autoreact_users.add(ctx.author.id)
+    save_autoreact_users()
+    await ctx.send(f"Auto-reaction 💀 enabled for {ctx.author.mention}.")
+
+
+@bot.command()
+async def autoreactoff(ctx):
+    autoreact_users.discard(ctx.author.id)
+    save_autoreact_users()
+    await ctx.send(f"Auto-reaction disabled for {ctx.author.mention}.")
+
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    is_pinged = bool(bot.user and bot.user in message.mentions)
+    if is_pinged or await is_reply_to_bot(message):
+        await answer_with_ai(message)
+
+    is_turning_off = message.content.strip().lower().startswith("!autoreactoff")
+    if message.author.id in autoreact_users and not is_turning_off:
+        try:
+            await message.add_reaction("💀")
+        except (discord.Forbidden, discord.HTTPException) as error:
+            print(f"Could not add auto-reaction: {error}")
+
+    await bot.process_commands(message)
+
+
+bot.run("MTUyNTE1OTMxMDcwNTk1NDkxMA.GAhaN3.6_6d6JRl0ckEmEb4SeKCUowbrak3gC-BAkX8Iw")

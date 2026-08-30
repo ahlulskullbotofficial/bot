@@ -1,0 +1,495 @@
+# -*- coding: utf-8 -*-
+"""
+autofix.py - Self-healing AI watchdog for bot.py
+
+Triggers a fix attempt on:
+  - Python tracebacks (hard crashes)
+  - Known bad behaviour patterns in the output (soft failures)
+  - RuntimeErrors, unhandled exceptions logged mid-run
+  - Repeated identical errors (loop detection)
+
+For each trigger:
+  - Captures the surrounding context (last 60 lines + relevant code)
+  - Asks qwen2.5-coder:7b to produce a SEARCH/REPLACE patch
+  - Applies the patch and hot-restarts the bot
+  - Backs up before patching, rolls back if the fix makes things worse
+  - Hot-reloads when bot.py is saved on disk
+"""
+
+import collections
+import hashlib
+import json
+import re
+import shutil
+import subprocess
+import sys
+import threading
+import time
+import urllib.request
+from datetime import datetime
+from pathlib import Path
+
+BOT_FILE            = Path(__file__).with_name("bot.py")
+BACKUP_DIR          = Path(__file__).with_name(".autofix_backups")
+LOG_FILE            = Path(__file__).with_name("autofix_log.txt")
+RELOAD_FLAG         = Path(__file__).with_name(".reload_now")
+OLLAMA_URL          = "http://127.0.0.1:11434/api/chat"
+CODER_MODEL         = "qwen2.5-coder:7b"
+FALLBACK_MODEL      = "llama3.2:3b"
+STABILITY_SECS      = 45
+MAX_FIX_ATTEMPTS    = 3
+FILE_WATCH_INTERVAL = 2
+# How many times the same error pattern must appear before triggering a fix
+REPEAT_THRESHOLD    = 3
+
+
+# ---------------------------------------------------------------------------
+# Behaviour patterns — each is a (label, regex, severity) tuple.
+# severity: "fix" = attempt AI patch, "warn" = log only
+# ---------------------------------------------------------------------------
+BEHAVIOUR_PATTERNS = [
+    # Hard errors
+    ("traceback",        r"Traceback \(most recent call last\):",           "fix"),
+    ("name_error",       r"NameError: name '.*' is not defined",            "fix"),
+    ("attribute_error",  r"AttributeError:",                                "fix"),
+    ("type_error",       r"TypeError:",                                     "fix"),
+    ("key_error",        r"KeyError:",                                      "fix"),
+    ("index_error",      r"IndexError:",                                    "fix"),
+    ("syntax_error",     r"SyntaxError:",                                   "fix"),
+    ("runtime_error",    r"RuntimeError:",                                  "fix"),
+    ("value_error",      r"ValueError:",                                    "fix"),
+    ("import_error",     r"ImportError:|ModuleNotFoundError:",              "fix"),
+    ("os_error",         r"OSError:|FileNotFoundError:|PermissionError:",   "fix"),
+    # Soft / behavioural failures
+    ("ai_not_ready",     r"local AI is not ready|Check that Ollama",        "fix"),
+    ("ai_failed",        r"Local AI request failed",                        "fix"),
+    ("voice_failed",     r"Voice reply generation failed",                  "fix"),
+    ("db_locked",        r"database is locked",                             "fix"),
+    ("db_error",         r"sqlite3\.",                                      "fix"),
+    ("event_loop_err",   r"no running event loop|no current event loop",    "fix"),
+    ("discord_error",    r"discord\.errors\.",                              "warn"),
+    ("rate_limited",     r"429 Too Many Requests",                          "warn"),
+    ("ollama_down",      r"Connection refused.*11434|urlopen error",        "fix"),
+    ("unhandled_exc",    r"Ignoring exception in",                          "fix"),
+    ("memory_fail",      r"Memory summarisation failed",                    "warn"),
+    ("vision_fail",      r"Local image analysis failed",                    "warn"),
+]
+
+# Pre-compile for speed
+COMPILED_PATTERNS = [
+    (label, re.compile(pattern, re.I), severity)
+    for label, pattern, severity in BEHAVIOUR_PATTERNS
+]
+
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+
+def log(msg):
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    line = f"[{ts}] {msg}"
+    print(line, flush=True)
+    try:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Ollama helpers
+# ---------------------------------------------------------------------------
+
+def ollama_alive():
+    try:
+        with urllib.request.urlopen(
+            urllib.request.Request("http://127.0.0.1:11434/api/tags"), timeout=3
+        ):
+            return True
+    except Exception:
+        return False
+
+
+def model_present(name):
+    try:
+        with urllib.request.urlopen(
+            urllib.request.Request("http://127.0.0.1:11434/api/tags"), timeout=5
+        ) as r:
+            models = [m["name"] for m in json.loads(r.read())["models"]]
+        return any(m == name or m.startswith(name.split(":")[0] + ":") for m in models)
+    except Exception:
+        return False
+
+
+def best_model():
+    if model_present(CODER_MODEL):
+        return CODER_MODEL
+    if model_present(FALLBACK_MODEL):
+        log(f"[AutoFix] {CODER_MODEL} not available, using {FALLBACK_MODEL}")
+        return FALLBACK_MODEL
+    return None
+
+
+def ask_ai(model, prompt):
+    payload = json.dumps({
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+        "options": {"num_predict": 1000, "temperature": 0.05},
+    }).encode()
+    req = urllib.request.Request(
+        OLLAMA_URL, data=payload,
+        headers={"Content-Type": "application/json"}, method="POST"
+    )
+    with urllib.request.urlopen(req, timeout=180) as resp:
+        return json.loads(resp.read())["message"]["content"].strip()
+
+
+# ---------------------------------------------------------------------------
+# Patch helpers
+# ---------------------------------------------------------------------------
+
+def backup_bot():
+    BACKUP_DIR.mkdir(exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    dest = BACKUP_DIR / f"bot_{ts}.py"
+    shutil.copy2(BOT_FILE, dest)
+    for old in sorted(BACKUP_DIR.glob("bot_*.py"))[:-15]:
+        old.unlink(missing_ok=True)
+    return dest
+
+
+def restore_backup(path):
+    shutil.copy2(path, BOT_FILE)
+    log(f"[AutoFix] Rolled back to {path.name}")
+
+
+def apply_patch(patch_text):
+    """Apply <<<SEARCH>>>...<<<REPLACE>>>...<<<END>>> blocks."""
+    blocks = re.findall(
+        r"<<<SEARCH>>>\n(.*?)\n<<<REPLACE>>>\n(.*?)\n<<<END>>>",
+        patch_text, re.S
+    )
+    if not blocks:
+        log("[AutoFix] No valid patch blocks in AI response.")
+        return False
+
+    source = BOT_FILE.read_text(encoding="utf-8")
+    applied = 0
+    for search, replace in blocks:
+        s, r = search.strip(), replace.strip()
+        if s in source:
+            source = source.replace(s, r, 1)
+            applied += 1
+        else:
+            log(f"[AutoFix] Block not found (already fixed?): {s[:80]!r}")
+
+    if applied:
+        BOT_FILE.write_text(source, encoding="utf-8")
+        log(f"[AutoFix] {applied}/{len(blocks)} patch block(s) applied.")
+    return applied > 0
+
+
+# ---------------------------------------------------------------------------
+# Context extraction
+# ---------------------------------------------------------------------------
+
+def get_code_context(line_num, context=14):
+    try:
+        lines = BOT_FILE.read_text(encoding="utf-8").splitlines()
+        start = max(0, line_num - context - 1)
+        end   = min(len(lines), line_num + context)
+        return "\n".join(
+            f"{'>>>' if i + 1 == line_num else '   '} {i+1:4d}: {lines[i]}"
+            for i in range(start, end)
+        )
+    except Exception:
+        return ""
+
+
+def build_fix_prompt(trigger_label, trigger_lines, recent_output):
+    """
+    Build a prompt for the coder AI.
+    trigger_lines: the log lines that matched the problem pattern
+    recent_output: last ~60 lines of bot output for context
+    """
+    # Extract bot.py line references from the output
+    refs = re.findall(r'File "([^"]*bot\.py[^"]*)", line (\d+)', recent_output)
+    code_sections = []
+    for _, ln in refs:
+        ctx = get_code_context(int(ln))
+        if ctx:
+            code_sections.append(f"Code near line {ln}:\n{ctx}")
+
+    # Also check if trigger lines themselves reference a line number
+    for tl in trigger_lines:
+        m = re.search(r"line (\d+)", tl)
+        if m:
+            ctx = get_code_context(int(m.group(1)))
+            if ctx and ctx not in "\n".join(code_sections):
+                code_sections.append(f"Code near line {m.group(1)}:\n{ctx}")
+
+    code_ctx = "\n\n".join(code_sections) or "(no specific line referenced)"
+
+    problem_block = "\n".join(trigger_lines)
+    context_block = recent_output[-3000:]  # last 3000 chars of output
+
+    return f"""You are an expert Python bot debugger. The Discord bot produced this problem:
+
+=== PROBLEM TYPE: {trigger_label.upper()} ===
+{problem_block}
+
+=== RECENT BOT OUTPUT (last 60 lines) ===
+{context_block}
+
+=== RELEVANT CODE IN bot.py ===
+{code_ctx}
+
+Your job: produce a minimal, safe fix for this specific problem.
+
+Rules:
+- Only fix the exact issue shown. Do not refactor anything else.
+- Output ONLY patch blocks in this format, nothing else:
+
+<<<SEARCH>>>
+exact original lines from bot.py (copy exactly, preserving indentation)
+<<<REPLACE>>>
+fixed replacement lines
+<<<END>>>
+
+Use multiple blocks if needed.
+If you cannot safely determine a fix, output exactly: CANNOT_FIX
+"""
+
+
+# ---------------------------------------------------------------------------
+# Behaviour monitor — runs in its own thread, watches output line-by-line
+# ---------------------------------------------------------------------------
+
+class BehaviourMonitor:
+    def __init__(self):
+        self.recent_lines    = collections.deque(maxlen=120)
+        self.error_counts    = collections.defaultdict(int)  # label -> count
+        self.pending_fix     = None   # (label, trigger_lines) waiting to be processed
+        self.lock            = threading.Lock()
+        self._last_fix_time  = 0
+
+    def feed(self, line):
+        """Feed a new output line. Returns (label, lines) if a fix should fire."""
+        self.recent_lines.append(line.rstrip())
+
+        for label, pattern, severity in COMPILED_PATTERNS:
+            if pattern.search(line):
+                with self.lock:
+                    self.error_counts[label] += 1
+                    count = self.error_counts[label]
+
+                if severity == "warn":
+                    if count == 1:
+                        log(f"[Monitor] Warning pattern '{label}': {line.rstrip()}")
+                    return None
+
+                # severity == "fix"
+                if severity == "fix":
+                    # Collect surrounding context lines
+                    trigger_lines = list(self.recent_lines)[-10:]
+                    now = time.time()
+
+                    # Only fire a fix if enough time has passed since the last one
+                    if now - self._last_fix_time < 30:
+                        return None
+
+                    # For soft errors require REPEAT_THRESHOLD occurrences
+                    # unless it's a hard crash (traceback/syntax/etc.)
+                    hard_errors = {"traceback", "name_error", "syntax_error",
+                                   "import_error", "attribute_error"}
+                    if label not in hard_errors and count < REPEAT_THRESHOLD:
+                        return None
+
+                    self._last_fix_time = now
+                    self.error_counts[label] = 0  # reset count after triggering
+                    return (label, trigger_lines)
+        return None
+
+    def reset(self):
+        with self.lock:
+            self.error_counts.clear()
+        self._last_fix_time = 0
+        self.recent_lines.clear()
+
+    def recent_output(self):
+        return "\n".join(self.recent_lines)
+
+
+# ---------------------------------------------------------------------------
+# File watcher
+# ---------------------------------------------------------------------------
+
+def file_hash(path):
+    try:
+        return hashlib.md5(path.read_bytes()).hexdigest()
+    except Exception:
+        return ""
+
+
+def watch_files(proc_ref, stop_event):
+    """Kill the bot process when bot.py changes or .reload_now appears."""
+    last_hash = file_hash(BOT_FILE)
+    while not stop_event.is_set():
+        time.sleep(FILE_WATCH_INTERVAL)
+        cur_hash = file_hash(BOT_FILE)
+        reload   = RELOAD_FLAG.exists()
+        if cur_hash != last_hash or reload:
+            if reload:
+                RELOAD_FLAG.unlink(missing_ok=True)
+                log("[AutoFix] Reload flag detected — restarting bot...")
+            else:
+                log("[AutoFix] bot.py changed on disk — hot-reloading...")
+            last_hash = cur_hash
+            p = proc_ref[0]
+            if p and p.poll() is None:
+                try:
+                    p.terminate()
+                except Exception:
+                    pass
+
+
+# ---------------------------------------------------------------------------
+# Fix runner
+# ---------------------------------------------------------------------------
+
+def attempt_fix(label, trigger_lines, recent_output, fix_attempt):
+    """
+    Try to fix a detected problem.
+    Returns True if a patch was applied.
+    """
+    log(f"[AutoFix] Problem detected: '{label}' (attempt {fix_attempt}/{MAX_FIX_ATTEMPTS})")
+
+    if not ollama_alive():
+        log("[AutoFix] Ollama not reachable — skipping AI fix.")
+        return False
+
+    model = best_model()
+    if not model:
+        log("[AutoFix] No coding model available.")
+        return False
+
+    backup = backup_bot()
+    log(f"[AutoFix] Backed up to {backup.name}")
+
+    prompt = build_fix_prompt(label, trigger_lines, recent_output)
+    try:
+        log(f"[AutoFix] Sending problem to {model}...")
+        response = ask_ai(model, prompt)
+    except Exception as e:
+        log(f"[AutoFix] AI request failed: {e}")
+        return False
+
+    if "CANNOT_FIX" in response:
+        log("[AutoFix] AI cannot safely fix this.")
+        return False
+
+    patched = apply_patch(response)
+    if not patched:
+        log("[AutoFix] Patch produced no changes.")
+    return patched
+
+
+# ---------------------------------------------------------------------------
+# Main loop
+# ---------------------------------------------------------------------------
+
+def run():
+    fix_attempts = 0
+    last_backup  = None
+    monitor      = BehaviourMonitor()
+
+    log("=" * 60)
+    log("AutoFix watchdog started")
+    log(f"Bot     : {BOT_FILE}")
+    log(f"AI model: {CODER_MODEL} (fallback: {FALLBACK_MODEL})")
+    log(f"Watching: crashes + {len(BEHAVIOUR_PATTERNS)} behaviour patterns")
+    log("=" * 60)
+
+    while True:
+        log(f"[AutoFix] Launching bot.py...")
+        start_time = time.time()
+        monitor.reset()
+
+        proc = subprocess.Popen(
+            [sys.executable, str(BOT_FILE)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True, encoding="utf-8", errors="replace",
+            cwd=str(BOT_FILE.parent),
+        )
+        proc_ref   = [proc]
+        stop_watch = threading.Event()
+        watcher    = threading.Thread(
+            target=watch_files, args=(proc_ref, stop_watch), daemon=True
+        )
+        watcher.start()
+
+        needs_fix   = None   # (label, trigger_lines) if a fix should fire mid-run
+        kill_reason = None   # why we killed the process (if we did)
+
+        for line in proc.stdout:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+
+            result = monitor.feed(line)
+            if result and needs_fix is None:
+                needs_fix   = result
+                kill_reason = result[0]
+                log(f"[AutoFix] Behaviour trigger '{kill_reason}' — will fix after output drains.")
+                # Don't kill immediately for soft errors; let it finish logging
+                if kill_reason in {"traceback", "name_error", "syntax_error",
+                                    "import_error", "attribute_error", "type_error"}:
+                    if proc.poll() is None:
+                        try:
+                            proc.terminate()
+                        except Exception:
+                            pass
+
+        proc.wait()
+        stop_watch.set()
+
+        uptime    = time.time() - start_time
+        exit_code = proc.returncode
+        log(f"[AutoFix] Bot exited after {uptime:.1f}s (code {exit_code})")
+
+        if uptime >= STABILITY_SECS:
+            fix_attempts = 0
+            last_backup  = None
+
+        # --- Decide whether to attempt a fix ---
+        if needs_fix and fix_attempts < MAX_FIX_ATTEMPTS:
+            label, trigger_lines = needs_fix
+            patched = attempt_fix(
+                label, trigger_lines,
+                monitor.recent_output(),
+                fix_attempts + 1
+            )
+            if patched:
+                fix_attempts += 1
+                last_backup = list(sorted(BACKUP_DIR.glob("bot_*.py")))[-1] if BACKUP_DIR.exists() else None
+                log("[AutoFix] Patch applied — restarting bot with fix...")
+                time.sleep(2)
+                continue
+
+        elif fix_attempts >= MAX_FIX_ATTEMPTS:
+            log(f"[AutoFix] Max fix attempts reached.")
+            if last_backup and last_backup.exists():
+                log("[AutoFix] Rolling back to last backup...")
+                restore_backup(last_backup)
+                fix_attempts = 0
+                last_backup  = None
+            time.sleep(3)
+
+        log("[AutoFix] Restarting in 5 seconds...")
+        time.sleep(5)
+
+
+if __name__ == "__main__":
+    run()

@@ -1,0 +1,704 @@
+{
+  "questions": [
+    {
+      "id": "q20-001",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "What should be done before prayer when water is available?",
+      "choices": [
+        "Wudu",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 5:6"
+    },
+    {
+      "id": "q20-002",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Practical fiqh: What should be done before prayer when water is available?",
+      "choices": [
+        "Wudu",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 5:6"
+    },
+    {
+      "id": "q20-003",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Choose the correct ruling: What should be done before prayer when water is available?",
+      "choices": [
+        "Wudu",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 5:6"
+    },
+    {
+      "id": "q20-004",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Worship knowledge check — what should be done before prayer when water is available?",
+      "choices": [
+        "Wudu",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 5:6"
+    },
+    {
+      "id": "q20-005",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "From the stated Qur'anic source, what should be done before prayer when water is available?",
+      "choices": [
+        "Wudu",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 5:6"
+    },
+    {
+      "id": "q20-006",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "What alternative purification is permitted without water?",
+      "choices": [
+        "Tayammum",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 4:43"
+    },
+    {
+      "id": "q20-007",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Practical fiqh: What alternative purification is permitted without water?",
+      "choices": [
+        "Tayammum",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 4:43"
+    },
+    {
+      "id": "q20-008",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Choose the correct ruling: What alternative purification is permitted without water?",
+      "choices": [
+        "Tayammum",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 4:43"
+    },
+    {
+      "id": "q20-009",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Worship knowledge check — what alternative purification is permitted without water?",
+      "choices": [
+        "Tayammum",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 4:43"
+    },
+    {
+      "id": "q20-010",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "From the stated Qur'anic source, what alternative purification is permitted without water?",
+      "choices": [
+        "Tayammum",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 4:43"
+    },
+    {
+      "id": "q20-011",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "What should be faced during formal prayer?",
+      "choices": [
+        "The qiblah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:144"
+    },
+    {
+      "id": "q20-012",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Practical fiqh: What should be faced during formal prayer?",
+      "choices": [
+        "The qiblah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:144"
+    },
+    {
+      "id": "q20-013",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Choose the correct ruling: What should be faced during formal prayer?",
+      "choices": [
+        "The qiblah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:144"
+    },
+    {
+      "id": "q20-014",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Worship knowledge check — what should be faced during formal prayer?",
+      "choices": [
+        "The qiblah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:144"
+    },
+    {
+      "id": "q20-015",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "From the stated Qur'anic source, what should be faced during formal prayer?",
+      "choices": [
+        "The qiblah",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:144"
+    },
+    {
+      "id": "q20-016",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "What should be established with zakah?",
+      "choices": [
+        "Prayer",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:43"
+    },
+    {
+      "id": "q20-017",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Practical fiqh: What should be established with zakah?",
+      "choices": [
+        "Prayer",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:43"
+    },
+    {
+      "id": "q20-018",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Choose the correct ruling: What should be established with zakah?",
+      "choices": [
+        "Prayer",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:43"
+    },
+    {
+      "id": "q20-019",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Worship knowledge check — what should be established with zakah?",
+      "choices": [
+        "Prayer",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:43"
+    },
+    {
+      "id": "q20-020",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "From the stated Qur'anic source, what should be established with zakah?",
+      "choices": [
+        "Prayer",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:43"
+    },
+    {
+      "id": "q20-021",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "What month is fasting prescribed in?",
+      "choices": [
+        "Ramadan",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:185"
+    },
+    {
+      "id": "q20-022",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Practical fiqh: What month is fasting prescribed in?",
+      "choices": [
+        "Ramadan",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:185"
+    },
+    {
+      "id": "q20-023",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Choose the correct ruling: What month is fasting prescribed in?",
+      "choices": [
+        "Ramadan",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:185"
+    },
+    {
+      "id": "q20-024",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Worship knowledge check — what month is fasting prescribed in?",
+      "choices": [
+        "Ramadan",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:185"
+    },
+    {
+      "id": "q20-025",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "From the stated Qur'anic source, what month is fasting prescribed in?",
+      "choices": [
+        "Ramadan",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:185"
+    },
+    {
+      "id": "q20-026",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "What should be avoided while fasting in Ramadan?",
+      "choices": [
+        "Eating and drinking in the fast",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:187"
+    },
+    {
+      "id": "q20-027",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Practical fiqh: What should be avoided while fasting in Ramadan?",
+      "choices": [
+        "Eating and drinking in the fast",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:187"
+    },
+    {
+      "id": "q20-028",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Choose the correct ruling: What should be avoided while fasting in Ramadan?",
+      "choices": [
+        "Eating and drinking in the fast",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:187"
+    },
+    {
+      "id": "q20-029",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Worship knowledge check — what should be avoided while fasting in Ramadan?",
+      "choices": [
+        "Eating and drinking in the fast",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:187"
+    },
+    {
+      "id": "q20-030",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "From the stated Qur'anic source, what should be avoided while fasting in Ramadan?",
+      "choices": [
+        "Eating and drinking in the fast",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:187"
+    },
+    {
+      "id": "q20-031",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "What should one do when unable to fast due to illness or travel?",
+      "choices": [
+        "Make up the days later",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:184-185"
+    },
+    {
+      "id": "q20-032",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Practical fiqh: What should one do when unable to fast due to illness or travel?",
+      "choices": [
+        "Make up the days later",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:184-185"
+    },
+    {
+      "id": "q20-033",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Choose the correct ruling: What should one do when unable to fast due to illness or travel?",
+      "choices": [
+        "Make up the days later",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:184-185"
+    },
+    {
+      "id": "q20-034",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Worship knowledge check — what should one do when unable to fast due to illness or travel?",
+      "choices": [
+        "Make up the days later",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:184-185"
+    },
+    {
+      "id": "q20-035",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "From the stated Qur'anic source, what should one do when unable to fast due to illness or travel?",
+      "choices": [
+        "Make up the days later",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 2:184-185"
+    },
+    {
+      "id": "q20-036",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "What must be fulfilled in financial dealings?",
+      "choices": [
+        "Contracts",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 5:1"
+    },
+    {
+      "id": "q20-037",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Practical fiqh: What must be fulfilled in financial dealings?",
+      "choices": [
+        "Contracts",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 5:1"
+    },
+    {
+      "id": "q20-038",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Choose the correct ruling: What must be fulfilled in financial dealings?",
+      "choices": [
+        "Contracts",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 5:1"
+    },
+    {
+      "id": "q20-039",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Worship knowledge check — what must be fulfilled in financial dealings?",
+      "choices": [
+        "Contracts",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 5:1"
+    },
+    {
+      "id": "q20-040",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "From the stated Qur'anic source, what must be fulfilled in financial dealings?",
+      "choices": [
+        "Contracts",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 5:1"
+    },
+    {
+      "id": "q20-041",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "What should be observed when measuring and weighing?",
+      "choices": [
+        "Justice",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 6:152"
+    },
+    {
+      "id": "q20-042",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Practical fiqh: What should be observed when measuring and weighing?",
+      "choices": [
+        "Justice",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 6:152"
+    },
+    {
+      "id": "q20-043",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Choose the correct ruling: What should be observed when measuring and weighing?",
+      "choices": [
+        "Justice",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 6:152"
+    },
+    {
+      "id": "q20-044",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Worship knowledge check — what should be observed when measuring and weighing?",
+      "choices": [
+        "Justice",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 6:152"
+    },
+    {
+      "id": "q20-045",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "From the stated Qur'anic source, what should be observed when measuring and weighing?",
+      "choices": [
+        "Justice",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 6:152"
+    },
+    {
+      "id": "q20-046",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "What should be done after Jumu'ah prayer?",
+      "choices": [
+        "Seek Allah's bounty and remember Him",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 62:10"
+    },
+    {
+      "id": "q20-047",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Practical fiqh: What should be done after Jumu'ah prayer?",
+      "choices": [
+        "Seek Allah's bounty and remember Him",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 62:10"
+    },
+    {
+      "id": "q20-048",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Choose the correct ruling: What should be done after Jumu'ah prayer?",
+      "choices": [
+        "Seek Allah's bounty and remember Him",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 62:10"
+    },
+    {
+      "id": "q20-049",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "Worship knowledge check — what should be done after Jumu'ah prayer?",
+      "choices": [
+        "Seek Allah's bounty and remember Him",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 62:10"
+    },
+    {
+      "id": "q20-050",
+      "level": "advanced",
+      "category": "Practical Fiqh",
+      "prompt": "From the stated Qur'anic source, what should be done after Jumu'ah prayer?",
+      "choices": [
+        "Seek Allah's bounty and remember Him",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Qur'an 62:10"
+    }
+  ]
+}

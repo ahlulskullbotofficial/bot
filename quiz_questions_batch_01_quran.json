@@ -1,0 +1,14 @@
+{
+  "questions": [
+    {"id":"quran-b01-001","level":"advanced","category":"Qur'an","prompt":"Which verse is commonly called Ayat ad-Dayn (the Verse of Debt)?","choices":["2:282","2:255","4:11","5:3"],"correct":0,"source":"Qur'an 2:282","note":"This is the longest verse in the Qur'an."},
+    {"id":"quran-b01-002","level":"intermediate","category":"Qur'an","prompt":"In Ayat al-Kursi, which two conditions are explicitly said not to overtake Allah?","choices":["Hunger and thirst","Drowsiness and sleep","Weakness and illness","Forgetfulness and regret"],"correct":1,"source":"Qur'an 2:255"},
+    {"id":"quran-b01-003","level":"advanced","category":"Qur'an","prompt":"According to 3:37, who was entrusted with the care of Maryam?","choices":["Yahya","Zakariyya","Isa","Harun"],"correct":1,"source":"Qur'an 3:37"},
+    {"id":"quran-b01-004","level":"advanced","category":"Qur'an","prompt":"In 5:3, which blessing does Allah say He has completed for the believers?","choices":["Their wealth","Their religion","Their lineage","Their worldly authority"],"correct":1,"source":"Qur'an 5:3"},
+    {"id":"quran-b01-005","level":"advanced","category":"Qur'an","prompt":"According to 6:103, what does not encompass Allah?","choices":["Knowledge","Hearts","Vision","The angels"],"correct":2,"source":"Qur'an 6:103"},
+    {"id":"quran-b01-006","level":"intermediate","category":"Qur'an","prompt":"Who is the companion in the cave referred to in the context of 9:40?","choices":["Umar ibn al-Khattab","Ali ibn Abi Talib","Abu Bakr as-Siddiq","Uthman ibn Affan"],"correct":2,"source":"Qur'an 9:40"},
+    {"id":"quran-b01-007","level":"advanced","category":"Qur'an","prompt":"In Yusuf's dream in 12:4, how many stars did he see?","choices":["Seven","Nine","Eleven","Twelve"],"correct":2,"source":"Qur'an 12:4"},
+    {"id":"quran-b01-008","level":"advanced","category":"Qur'an","prompt":"According to 13:28, by what do hearts find rest?","choices":["Wealth","The remembrance of Allah","Travel","Argument"],"correct":1,"source":"Qur'an 13:28"},
+    {"id":"quran-b01-009","level":"advanced","category":"Qur'an","prompt":"Which two qualities are commanded together with justice in 16:90?","choices":["Patience and migration","Excellence and giving to relatives","Fasting and pilgrimage","Silence and solitude"],"correct":1,"source":"Qur'an 16:90"},
+    {"id":"quran-b01-010","level":"advanced","category":"Qur'an","prompt":"In 17:1, from which mosque was the night journey begun?","choices":["Al-Masjid an-Nabawi","Al-Masjid al-Aqsa","Al-Masjid al-Haram","Masjid Quba"],"correct":2,"source":"Qur'an 17:1"}
+  ]
+}

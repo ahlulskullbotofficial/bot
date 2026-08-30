@@ -1,0 +1,13 @@
+services:
+  - type: worker
+    name: ahlul-skull-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python autofix.py
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false

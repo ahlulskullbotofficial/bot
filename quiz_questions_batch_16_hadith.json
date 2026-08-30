@@ -1,0 +1,704 @@
+{
+  "questions": [
+    {
+      "id": "q16-001",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "What determines the value of deeds in the famous opening hadith?",
+      "choices": [
+        "Intentions",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-002",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Choose the correct answer: What determines the value of deeds in the famous opening hadith?",
+      "choices": [
+        "Intentions",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-003",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Knowledge check — what determines the value of deeds in the famous opening hadith?",
+      "choices": [
+        "Intentions",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-004",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "From the stated source, what determines the value of deeds in the famous opening hadith?",
+      "choices": [
+        "Intentions",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-005",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Advanced quiz: What determines the value of deeds in the famous opening hadith?",
+      "choices": [
+        "Intentions",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-006",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "How many pillars of Islam are named in the hadith of Ibn Umar?",
+      "choices": [
+        "Five",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-007",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Choose the correct answer: How many pillars of Islam are named in the hadith of Ibn Umar?",
+      "choices": [
+        "Five",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-008",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Knowledge check — how many pillars of Islam are named in the hadith of Ibn Umar?",
+      "choices": [
+        "Five",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-009",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "From the stated source, how many pillars of Islam are named in the hadith of Ibn Umar?",
+      "choices": [
+        "Five",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-010",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Advanced quiz: How many pillars of Islam are named in the hadith of Ibn Umar?",
+      "choices": [
+        "Five",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-011",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "How many pillars of iman are named in the hadith of Jibril?",
+      "choices": [
+        "Six",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q16-012",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Choose the correct answer: How many pillars of iman are named in the hadith of Jibril?",
+      "choices": [
+        "Six",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q16-013",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Knowledge check — how many pillars of iman are named in the hadith of Jibril?",
+      "choices": [
+        "Six",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q16-014",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "From the stated source, how many pillars of iman are named in the hadith of Jibril?",
+      "choices": [
+        "Six",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q16-015",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Advanced quiz: How many pillars of iman are named in the hadith of Jibril?",
+      "choices": [
+        "Six",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q16-016",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "What is the religion according to the hadith?",
+      "choices": [
+        "Sincere advice",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q16-017",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Choose the correct answer: What is the religion according to the hadith?",
+      "choices": [
+        "Sincere advice",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q16-018",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Knowledge check — what is the religion according to the hadith?",
+      "choices": [
+        "Sincere advice",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q16-019",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "From the stated source, what is the religion according to the hadith?",
+      "choices": [
+        "Sincere advice",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q16-020",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Advanced quiz: What is the religion according to the hadith?",
+      "choices": [
+        "Sincere advice",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q16-021",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "What did the Prophet say should be spoken or kept silent?",
+      "choices": [
+        "Good",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-022",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Choose the correct answer: What did the Prophet say should be spoken or kept silent?",
+      "choices": [
+        "Good",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-023",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Knowledge check — what did the Prophet say should be spoken or kept silent?",
+      "choices": [
+        "Good",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-024",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "From the stated source, what did the Prophet say should be spoken or kept silent?",
+      "choices": [
+        "Good",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-025",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Advanced quiz: What did the Prophet say should be spoken or kept silent?",
+      "choices": [
+        "Good",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-026",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "What should a believer love for his brother?",
+      "choices": [
+        "What he loves for himself",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-027",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Choose the correct answer: What should a believer love for his brother?",
+      "choices": [
+        "What he loves for himself",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-028",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Knowledge check — what should a believer love for his brother?",
+      "choices": [
+        "What he loves for himself",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-029",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "From the stated source, what should a believer love for his brother?",
+      "choices": [
+        "What he loves for himself",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-030",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Advanced quiz: What should a believer love for his brother?",
+      "choices": [
+        "What he loves for himself",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-031",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "What is part of faith according to a hadith?",
+      "choices": [
+        "Modesty",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-032",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Choose the correct answer: What is part of faith according to a hadith?",
+      "choices": [
+        "Modesty",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-033",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Knowledge check — what is part of faith according to a hadith?",
+      "choices": [
+        "Modesty",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-034",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "From the stated source, what is part of faith according to a hadith?",
+      "choices": [
+        "Modesty",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-035",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Advanced quiz: What is part of faith according to a hadith?",
+      "choices": [
+        "Modesty",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-036",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "What should be made easy and not made?",
+      "choices": [
+        "Difficult",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-037",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Choose the correct answer: What should be made easy and not made?",
+      "choices": [
+        "Difficult",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-038",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Knowledge check — what should be made easy and not made?",
+      "choices": [
+        "Difficult",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-039",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "From the stated source, what should be made easy and not made?",
+      "choices": [
+        "Difficult",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-040",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Advanced quiz: What should be made easy and not made?",
+      "choices": [
+        "Difficult",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih al-Bukhari; Sahih Muslim"
+    },
+    {
+      "id": "q16-041",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "What did the Prophet forbid regarding harm?",
+      "choices": [
+        "Causing harm or returning harm",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunan Ibn Majah"
+    },
+    {
+      "id": "q16-042",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Choose the correct answer: What did the Prophet forbid regarding harm?",
+      "choices": [
+        "Causing harm or returning harm",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunan Ibn Majah"
+    },
+    {
+      "id": "q16-043",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Knowledge check — what did the Prophet forbid regarding harm?",
+      "choices": [
+        "Causing harm or returning harm",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunan Ibn Majah"
+    },
+    {
+      "id": "q16-044",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "From the stated source, what did the Prophet forbid regarding harm?",
+      "choices": [
+        "Causing harm or returning harm",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunan Ibn Majah"
+    },
+    {
+      "id": "q16-045",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Advanced quiz: What did the Prophet forbid regarding harm?",
+      "choices": [
+        "Causing harm or returning harm",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sunan Ibn Majah"
+    },
+    {
+      "id": "q16-046",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "What does Allah look at according to Sahih Muslim?",
+      "choices": [
+        "Hearts and deeds",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q16-047",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Choose the correct answer: What does Allah look at according to Sahih Muslim?",
+      "choices": [
+        "Hearts and deeds",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q16-048",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Knowledge check — what does Allah look at according to Sahih Muslim?",
+      "choices": [
+        "Hearts and deeds",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q16-049",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "From the stated source, what does Allah look at according to Sahih Muslim?",
+      "choices": [
+        "Hearts and deeds",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    },
+    {
+      "id": "q16-050",
+      "level": "advanced",
+      "category": "Hadith",
+      "prompt": "Advanced quiz: What does Allah look at according to Sahih Muslim?",
+      "choices": [
+        "Hearts and deeds",
+        "a crown",
+        "a market",
+        "a mountain"
+      ],
+      "correct": 0,
+      "source": "Sahih Muslim"
+    }
+  ]
+}
