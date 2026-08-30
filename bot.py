@@ -1684,6 +1684,46 @@ async def answer_with_ai(message):
             print(f"[Reply sent] Fallback to {message.author.display_name}")
 
 
+def _is_reply_sane(user_message: str, reply: str) -> tuple:
+    """
+    Fast heuristic sanity check — no AI call needed.
+    Returns (is_sane, reason). is_sane=False means the reply is wrong.
+    """
+    reply_lower = reply.lower()
+    msg_lower   = user_message.lower()
+
+    # System/error messages leaking into replies
+    bad_phrases = [
+        "image analysis needs ollama",
+        "vision analysis is only available",
+        "local vision model is not installed",
+        "bear with me, my brain",
+        "oi, the local ai is not ready",
+        "local ai is not ready",
+        "check that ollama is running",
+        "i can't transcribe voice messages right now",
+        "something went wrong on my end",
+        "could not list ollama",
+    ]
+    for phrase in bad_phrases:
+        if phrase in reply_lower:
+            return False, f"system_error_leaked:{phrase[:40]}"
+
+    # Empty reply
+    if not reply.strip():
+        return False, "empty_reply"
+
+    # Image error reply when no image was in the input
+    image_error_phrases = ["i can see you sent an image", "image attached", "vision model"]
+    image_input_hints   = ["image", "photo", "picture", "pic", ".gif", ".jpg", ".png", "look at this"]
+    reply_has_img_error = any(p in reply_lower for p in image_error_phrases)
+    input_has_img_hint  = any(p in msg_lower for p in image_input_hints)
+    if reply_has_img_error and not input_has_img_hint:
+        return False, "image_error_on_text_message"
+
+    return True, ""
+
+
 async def _answer_with_ai_inner(message, stripped_content):
     """Inner handler called only when the per-user lock is held."""
     user_message = stripped_content
@@ -1770,6 +1810,22 @@ async def _answer_with_ai_inner(message, stripped_content):
             reply = await asyncio.to_thread(
                 make_ai_reply, history, ai_user_message, member_context, bool(image_description), message.author.id
             )
+        # Validate reply before sending — catch silent wrong behaviour
+        reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
+        sane, reason = _is_reply_sane(user_message, reply)
+        if not sane:
+            print(f"[Validator] Bad reply detected ({reason}) — regenerating...")
+            brain.log_event("validator", f"bad_{reason}", user_id=message.author.id)
+            brain.add_known_issue(f"Bad reply: {reason}")
+            safe_prompt = user_message + "\n\n[Reply naturally. Do not mention images, vision, Ollama, or system errors unless the user actually asked about them.]"
+            try:
+                async with message.channel.typing():
+                    reply = await asyncio.to_thread(
+                        make_ai_reply, history, safe_prompt, member_context, False, message.author.id
+                    )
+                reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
+            except Exception:
+                pass
     except Exception as error:
         print(f"[AI] Request failed: {type(error).__name__}: {error}")
         traceback.print_exc()
