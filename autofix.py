@@ -90,6 +90,7 @@ BEHAVIOUR_PATTERNS = [
     ("event_loop_err",   r"no running event loop|no current event loop",    "fix"),
     ("discord_error",    r"discord\.errors\.",                              "warn"),
     ("rate_limited",     r"429 Too Many Requests",                          "warn"),
+    ("command_notfound", r"CommandNotFound:",                               "warn"),
     ("ollama_down",      r"Connection refused.*11434|urlopen error",        "fix"),
     ("unhandled_exc",    r"Ignoring exception in",                          "fix"),
     ("memory_fail",      r"Memory summarisation failed",                    "warn"),
@@ -374,7 +375,7 @@ class BehaviourMonitor:
                         return None
                     hard_errors = {"traceback", "name_error", "syntax_error",
                                    "import_error", "attribute_error", "silent_failure",
-                                   "unhandled_exc", "type_error", "value_error",
+                                   "type_error", "value_error",
                                    "key_error", "index_error", "os_error"}
                     if label not in hard_errors and count < REPEAT_THRESHOLD:
                         return None
