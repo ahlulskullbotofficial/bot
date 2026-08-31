@@ -2108,15 +2108,8 @@ async def groq_health_check():
                 "4. Restart the deployment\n\n"
                 "Bot cannot reply to anyone until this is fixed."
             )
-            print(f"[GROQ ALERT] Key invalid (HTTP {e.code})")
-            if BOT_OWNER_ID and brain.should_alert("groq_key_dead"):
-                try:
-                    owner = await bot.fetch_user(BOT_OWNER_ID)
-                    await owner.send(msg)
-                    print(f"[GROQ ALERT] DM sent to owner {BOT_OWNER_ID}")
-                except Exception as dm_err:
-                    print(f"[GROQ ALERT] Could not DM owner: {dm_err}")
-            # Stop checking until manually restarted — key needs human action
+            print(f"[GROQ ALERT] Key invalid (HTTP {e.code}) — update GROQ_API_KEY or use OpenRouter")
+            # Stop the health check permanently until bot restarts
             groq_health_check.stop()
     except Exception:
         pass
