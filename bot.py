@@ -56,7 +56,7 @@ GROQ_URL      = "https://api.groq.com/openai/v1/chat/completions"
 # OpenRouter fallback — free alternative if Groq is unavailable
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
-OPENROUTER_MODEL   = "google/gemma-4-31b-it:free"
+OPENROUTER_MODEL   = "nvidia/nemotron-3.5-lightning:free"
 # Prefer Qwen2.5-VL; fall back to moondream only if nothing else is installed.
 PREFERRED_VISION_MODELS = (
     "qwen2.5vl:3b",
@@ -781,7 +781,12 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
         }).encode("utf-8")
         req = urllib.request.Request(
             url, data=payload,
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {key}",
+                "HTTP-Referer": "https://github.com",
+                "X-Title": "AhlulSkullBot",
+            },
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=8) as response:
