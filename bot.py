@@ -53,6 +53,10 @@ GROQ_API_KEY_2 = os.environ.get("GROQ_API_KEY_2", "")
 GROQ_API_KEY_3 = os.environ.get("GROQ_API_KEY_3", "")
 GROQ_MODEL    = "llama-3.3-70b-versatile"
 GROQ_URL      = "https://api.groq.com/openai/v1/chat/completions"
+# OpenRouter fallback — free alternative if Groq is unavailable
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_MODEL   = "meta-llama/llama-3.3-70b-instruct:free"
 # Prefer Qwen2.5-VL; fall back to moondream only if nothing else is installed.
 PREFERRED_VISION_MODELS = (
     "qwen2.5vl:3b",
@@ -765,32 +769,33 @@ def send_from_console():
 
 def _call_ai(messages, max_tokens=160, temperature=0.8):
     """
-    Unified AI caller. Uses Groq if GROQ_API_KEY is set, otherwise Ollama.
-    Falls back to Ollama automatically if Groq returns an error.
+    Unified AI caller. Priority: Groq → OpenRouter → Ollama.
+    Falls back automatically if any provider fails.
     """
+    def _try_openai_compatible(url, key, model, label):
+        payload = json.dumps({
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            url, data=payload,
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=30) as response:
+            result = json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"].strip()
+            brain.groq_alive = True
+            brain.log_event(label, "reply_ok")
+            return result
+
+    # 1. Try Groq
     if GROQ_API_KEY:
         try:
-            payload = json.dumps({
-                "model": GROQ_MODEL,
-                "messages": messages,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-            }).encode("utf-8")
-            request = urllib.request.Request(
-                GROQ_URL,
-                data=payload,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
-                },
-                method="POST",
-            )
-            with urllib.request.urlopen(request, timeout=30) as response:
-                result = json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"].strip()
-                brain.track_groq_request()
-                brain.groq_alive = True
-                brain.log_event("groq", "reply_ok")
-                return result
+            result = _try_openai_compatible(GROQ_URL, GROQ_API_KEY, GROQ_MODEL, "groq")
+            brain.groq_key_dead = False
+            return result
         except urllib.error.HTTPError as e:
             body = ""
             try:
@@ -799,42 +804,49 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
                 pass
             print(f"[AI] Groq error {e.code}: {body}")
             brain.groq_alive = False
-            brain.log_event("groq", f"error_{e.code}")
             if e.code in (401, 403):
-                brain.add_known_issue(f"GROQ KEY INVALID (HTTP {e.code}) — go to console.groq.com and create a new key, then update GROQ_API_KEY in bot-hosting.net Env tab")
                 brain.groq_key_dead = True
-                # Raise a specific exception so callers can show a useful message
-                raise RuntimeError(f"GROQ_KEY_INVALID:{e.code}")
-            brain.add_known_issue(f"Groq HTTP {e.code}")
-            # Other HTTP errors — fall through to Ollama
-        except RuntimeError:
-            raise  # re-raise our own errors (GROQ_KEY_INVALID etc.)
+                brain.add_known_issue(f"GROQ KEY INVALID (HTTP {e.code})")
+                print(f"[AI] Groq key invalid — trying OpenRouter fallback")
+            else:
+                brain.add_known_issue(f"Groq HTTP {e.code}")
         except Exception as e:
             print(f"[AI] Groq failed ({type(e).__name__}: {e})")
             brain.groq_alive = False
-            brain.log_event("groq", f"failed_{type(e).__name__}")
-            # Fall through to Ollama below
 
-    # Ollama fallback — only try if it's actually reachable
+    # 2. Try OpenRouter
+    if OPENROUTER_API_KEY:
+        try:
+            result = _try_openai_compatible(OPENROUTER_URL, OPENROUTER_API_KEY, OPENROUTER_MODEL, "openrouter")
+            brain.resolve_issue("GROQ KEY")
+            return result
+        except urllib.error.HTTPError as e:
+            print(f"[AI] OpenRouter error {e.code}")
+        except Exception as e:
+            print(f"[AI] OpenRouter failed ({type(e).__name__}: {e})")
+
+    # 3. Try Ollama
     if not _ollama_ping():
-        raise RuntimeError("Both Groq and Ollama are unavailable")
+        if brain.groq_key_dead:
+            raise RuntimeError("GROQ_KEY_INVALID:403")
+        raise RuntimeError("All AI providers unavailable")
     payload = json.dumps({
         "model": OLLAMA_MODEL,
         "messages": messages,
         "stream": False,
         "options": {"num_predict": max_tokens, "temperature": temperature},
     }).encode("utf-8")
-    request = urllib.request.Request(
-        OLLAMA_URL,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
+    req = urllib.request.Request(
+        OLLAMA_URL, data=payload,
+        headers={"Content-Type": "application/json"}, method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=60) as response:
+        with urllib.request.urlopen(req, timeout=60) as response:
             return json.loads(response.read().decode("utf-8"))["message"]["content"].strip()
     except urllib.error.URLError:
-        raise RuntimeError("Both Groq and Ollama are unavailable")
+        if brain.groq_key_dead:
+            raise RuntimeError("GROQ_KEY_INVALID:403")
+        raise RuntimeError("All AI providers unavailable")
 
 
 def make_ai_reply(history, user_message, member_context, visual=False, user_id=None):
