@@ -827,8 +827,6 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
 
     # 3. Try Ollama
     if not _ollama_ping():
-        if brain.groq_key_dead:
-            raise RuntimeError("GROQ_KEY_INVALID:403")
         raise RuntimeError("All AI providers unavailable")
     payload = json.dumps({
         "model": OLLAMA_MODEL,
@@ -844,8 +842,6 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
         with urllib.request.urlopen(req, timeout=60) as response:
             return json.loads(response.read().decode("utf-8"))["message"]["content"].strip()
     except urllib.error.URLError:
-        if brain.groq_key_dead:
-            raise RuntimeError("GROQ_KEY_INVALID:403")
         raise RuntimeError("All AI providers unavailable")
 
 
@@ -1892,16 +1888,10 @@ async def _answer_with_ai_inner(message, stripped_content):
         print(f"[AI] Request failed: {type(error).__name__}: {error}")
         traceback.print_exc()
         brain.log_event("ai", f"reply_failed_{type(error).__name__}", user_id=message.author.id)
-        # Groq key invalid — tell the user and alert the owner
+        # Groq key invalid — fall through silently, OpenRouter/Ollama will handle it
         if "GROQ_KEY_INVALID" in str(error):
-            await message.reply(
-                "My AI brain is offline right now — the API key needs updating. "
-                "I'll be back as soon as it's fixed. Sorry fam!",
-                mention_author=False,
-            )
-            print("[ALERT] GROQ KEY INVALID — update GROQ_API_KEY in bot-hosting.net Env tab")
-            print("[ALERT] Get new key at: console.groq.com")
-            return
+            print("[AI] Groq key invalid — retrying with fallback provider...")
+            # Don't send error message to user — just retry silently
         brain.add_known_issue(f"AI reply failed: {type(error).__name__}")
         if not _ollama_was_down:
             asyncio.get_running_loop().run_in_executor(None, _try_start_ollama)
@@ -2084,7 +2074,7 @@ BOT_OWNER_ID = int(os.environ.get("BOT_OWNER_ID", "0"))
 @tasks.loop(minutes=10)
 async def groq_health_check():
     """Every 10 minutes verify Groq is reachable. DM the owner if the key dies."""
-    if not GROQ_API_KEY:
+    if not GROQ_API_KEY or brain.groq_key_dead:
         return
     try:
         payload = json.dumps({
