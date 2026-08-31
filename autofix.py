@@ -70,8 +70,7 @@ def _load_groq_key():
 # ---------------------------------------------------------------------------
 BEHAVIOUR_PATTERNS = [
     # Hard errors
-    ("traceback",        r"Traceback \(most recent call last\):",           "fix"),
-    ("name_error",       r"NameError: name '.*' is not defined",            "fix"),
+    ("traceback",        r"Traceback \(most recent call last\):",           "fix"),    ("name_error",       r"NameError: name '.*' is not defined",            "fix"),
     ("attribute_error",  r"AttributeError:",                                "fix"),
     ("type_error",       r"TypeError:",                                     "fix"),
     ("key_error",        r"KeyError:",                                      "fix"),
@@ -335,6 +334,17 @@ class BehaviourMonitor:
     def feed(self, line):
         """Feed a new output line. Returns (label, lines) if a fix should fire."""
         self.recent_lines.append(line.rstrip())
+
+        # Never trigger fixes for known non-code errors
+        ignorable = [
+            "All AI providers unavailable",
+            "RuntimeError: All AI",
+            "HTTP Error 403",
+            "Connection refused",
+            "429 Too Many Requests",
+        ]
+        if any(phrase in line for phrase in ignorable):
+            return None
 
         # Track incoming vs sent replies to detect silent failures
         if "[Reply]" in line and "Incoming" in line:

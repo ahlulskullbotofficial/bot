@@ -784,14 +784,14 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
             headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=30) as response:
+        with urllib.request.urlopen(req, timeout=8) as response:
             result = json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"].strip()
             brain.groq_alive = True
             brain.log_event(label, "reply_ok")
             return result
 
-    # 1. Try Groq
-    if GROQ_API_KEY:
+    # 1. Try Groq (skip immediately if key is known dead)
+    if GROQ_API_KEY and not brain.groq_key_dead:
         try:
             result = _try_openai_compatible(GROQ_URL, GROQ_API_KEY, GROQ_MODEL, "groq")
             brain.groq_key_dead = False
@@ -878,18 +878,11 @@ def make_ai_reply(history, user_message, member_context, visual=False, user_id=N
     try:
         result = _call_ai(messages, max_tokens=max_tokens, temperature=temperature)
         if result is None:
-            raise RuntimeError("All AI providers unavailable")
+            return "I'm having trouble connecting to my AI right now. Try again in a sec."
         return result
-    except urllib.error.URLError as e:
-        print(f"[AI] Connection error: {e.reason}")
-        raise
-    except TimeoutError:
-        print("[AI] Request timed out")
-        raise
     except Exception as e:
-        print(f"[AI] Unexpected error in make_ai_reply: {type(e).__name__}: {e}")
-        traceback.print_exc()
-        raise
+        print(f"[AI] make_ai_reply failed: {type(e).__name__}: {e}")
+        return None
 
 
 def list_ollama_models(silent=False):
