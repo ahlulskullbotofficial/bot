@@ -2136,7 +2136,7 @@ async def on_ready():
     bot_loop = asyncio.get_running_loop()
     key_status = f"GROQ key: {'set (' + GROQ_API_KEY[:8] + '...)' if GROQ_API_KEY else 'NOT SET'}"
     or_status = f"OpenRouter: {'set (' + OPENROUTER_API_KEY[:12] + '...)' if OPENROUTER_API_KEY else 'NOT SET'}"
-    print(f"Bot is online as {bot.user} | {key_status} | {or_status}")
+    print(f"Bot v2.1 online as {bot.user} | {key_status} | {or_status}")
     # Resolve vision model in background so on_ready doesn't block
     async def _resolve_vision_async():
         global OLLAMA_VISION_MODEL
