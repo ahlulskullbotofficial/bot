@@ -817,17 +817,25 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
     # 2. Try OpenRouter
     if OPENROUTER_API_KEY:
         try:
+            print(f"[AI] Trying OpenRouter ({OPENROUTER_MODEL})...")
             result = _try_openai_compatible(OPENROUTER_URL, OPENROUTER_API_KEY, OPENROUTER_MODEL, "openrouter")
             brain.resolve_issue("GROQ KEY")
+            print("[AI] OpenRouter success")
             return result
         except urllib.error.HTTPError as e:
-            print(f"[AI] OpenRouter error {e.code}")
+            body = ""
+            try:
+                body = e.read().decode("utf-8", errors="ignore")[:300]
+            except Exception:
+                pass
+            print(f"[AI] OpenRouter HTTP error {e.code}: {body}")
         except Exception as e:
-            print(f"[AI] OpenRouter failed ({type(e).__name__}: {e})")
+            print(f"[AI] OpenRouter failed ({type(e).__name__}): {e}")
 
     # 3. Try Ollama
     if not _ollama_ping():
-        raise RuntimeError("All AI providers unavailable")
+        print("[AI] All providers unavailable — Groq blocked, OpenRouter failed, Ollama unreachable")
+        return None  # caller handles None gracefully
     payload = json.dumps({
         "model": OLLAMA_MODEL,
         "messages": messages,
@@ -842,7 +850,8 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
         with urllib.request.urlopen(req, timeout=60) as response:
             return json.loads(response.read().decode("utf-8"))["message"]["content"].strip()
     except urllib.error.URLError:
-        raise RuntimeError("All AI providers unavailable")
+        print("[AI] Ollama URLError")
+        return None  # caller handles None gracefully
 
 
 def make_ai_reply(history, user_message, member_context, visual=False, user_id=None):
@@ -867,7 +876,10 @@ def make_ai_reply(history, user_message, member_context, visual=False, user_id=N
     max_tokens  = 180 if visual else 160
     temperature = 0.2 if visual else 0.8
     try:
-        return _call_ai(messages, max_tokens=max_tokens, temperature=temperature)
+        result = _call_ai(messages, max_tokens=max_tokens, temperature=temperature)
+        if result is None:
+            raise RuntimeError("All AI providers unavailable")
+        return result
     except urllib.error.URLError as e:
         print(f"[AI] Connection error: {e.reason}")
         raise

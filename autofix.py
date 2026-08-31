@@ -92,6 +92,7 @@ BEHAVIOUR_PATTERNS = [
     ("rate_limited",     r"429 Too Many Requests",                          "warn"),
     ("command_notfound", r"CommandNotFound:",                               "warn"),
     ("ollama_down",      r"Connection refused.*11434|urlopen error",        "fix"),
+    ("all_ai_down",      r"All AI providers unavailable",                   "warn"),
     ("unhandled_exc",    r"Ignoring exception in",                          "fix"),
     ("memory_fail",      r"Memory summarisation failed",                    "warn"),
     ("vision_fail",      r"Local image analysis failed",                    "warn"),
