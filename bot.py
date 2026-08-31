@@ -325,6 +325,17 @@ def load_autoreact_users():
         return set()
 
 
+def _can_autoreact(user_id: int) -> bool:
+    """Return True only if this user hasn't had a reaction in the last 10 seconds."""
+    import time
+    now = time.time()
+    last = _autoreact_cooldown.get(user_id, 0)
+    if now - last < 10:
+        return False
+    _autoreact_cooldown[user_id] = now
+    return True
+
+
 def save_autoreact_users():
     autoreact_file.write_text(
         json.dumps({"user_ids": sorted(autoreact_users)}, indent=2),
@@ -735,7 +746,9 @@ def forget_user(user_id):
 
 
 autoreact_users = load_autoreact_users()
-initialise_memory()
+# Cooldown tracker for autoreact to avoid Discord rate limits
+# {user_id: last_reaction_timestamp}
+_autoreact_cooldown: dict = {}initialise_memory()
 quiz_game = IslamicQuiz(quiz_file, memory_file)
 
 
@@ -2411,16 +2424,15 @@ async def on_message(message):
                 print(f"Could not add the bot's self-reaction: {error}")
         return
     if await answer_voice_message(message):
-        if message.author.id in autoreact_users:
+        if message.author.id in autoreact_users and _can_autoreact(message.author.id):
             try:
                 await message.add_reaction("\U0001F480")
             except (discord.Forbidden, discord.HTTPException) as error:
                 print(f"Could not add auto-reaction: {error}")
         await bot.process_commands(message)
         return
-    is_pinged = bool(bot.user and bot.user in message.mentions)
     if is_pinged or await is_reply_to_bot(message):
-        if message.author.id in autoreact_users and not message.content.strip().lower().startswith("!autoreactoff"):
+        if message.author.id in autoreact_users and not message.content.strip().lower().startswith("!autoreactoff") and _can_autoreact(message.author.id):
             try:
                 await message.add_reaction("\U0001F480")
             except (discord.Forbidden, discord.HTTPException) as error:
@@ -2432,7 +2444,7 @@ async def on_message(message):
             return
         await answer_with_ai(message)
         return
-    if message.author.id in autoreact_users and not message.content.strip().lower().startswith("!autoreactoff"):
+    if message.author.id in autoreact_users and not message.content.strip().lower().startswith("!autoreactoff") and _can_autoreact(message.author.id):
         try:
             await message.add_reaction("\U0001F480")
         except (discord.Forbidden, discord.HTTPException) as error:
