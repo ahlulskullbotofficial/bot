@@ -57,6 +57,14 @@ GROQ_URL      = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_MODEL   = "nvidia/nemotron-3.5-lightning:free"
+# Fallback model list — tried in order if primary fails
+OPENROUTER_FALLBACK_MODELS = [
+    "nvidia/nemotron-3.5-lightning:free",
+    "google/gemma-4-31b-it:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "minimax/minimax-m2.7:free",
+    "z-ai/glm-5.2:free",
+]
 # Prefer Qwen2.5-VL; fall back to moondream only if nothing else is installed.
 PREFERRED_VISION_MODELS = (
     "qwen2.5vl:3b",
@@ -780,6 +788,30 @@ def send_from_console():
             print(f"Could not send the message: {error}")
 
 
+def _strip_thinking(text: str) -> str:
+    """Remove chain-of-thought / thinking blocks from AI responses.
+    Some models (nemotron, deepseek-r1 etc.) show their reasoning before the answer.
+    We strip everything up to and including common thinking markers.
+    """
+    if not text:
+        return text
+    import re
+    # Remove <think>...</think> blocks
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.S).strip()
+    # Remove "Here's a thinking process:" style blocks
+    # Match the block from the marker to the first blank line after bullet points
+    thinking_markers = [
+        r"Here['']s a thinking process:.*?(?=\n\n[A-Z\*]|\Z)",
+        r"Here's my thinking:.*?(?=\n\n[A-Z\*]|\Z)",
+        r"Let me think.*?(?=\n\n[A-Z\*]|\Z)",
+        r"Thinking:.*?(?=\n\n[A-Z\*]|\Z)",
+        r"\*\*Thinking\*\*.*?(?=\n\n[A-Z\*]|\Z)",
+    ]
+    for pattern in thinking_markers:
+        text = re.sub(pattern, '', text, flags=re.S | re.I).strip()
+    return text.strip()
+
+
 def _call_ai(messages, max_tokens=160, temperature=0.8):
     """
     Unified AI caller. Priority: Groq → OpenRouter → Ollama.
@@ -804,6 +836,7 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
         )
         with urllib.request.urlopen(req, timeout=8) as response:
             result = json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"].strip()
+            result = _strip_thinking(result)
             brain.groq_alive = True
             brain.log_event(label, "reply_ok")
             return result
@@ -832,23 +865,32 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
             print(f"[AI] Groq failed ({type(e).__name__}: {e})")
             brain.groq_alive = False
 
-    # 2. Try OpenRouter
+    # 2. Try OpenRouter (multiple models in sequence)
     if OPENROUTER_API_KEY:
-        try:
-            print(f"[AI] Trying OpenRouter ({OPENROUTER_MODEL})...")
-            result = _try_openai_compatible(OPENROUTER_URL, OPENROUTER_API_KEY, OPENROUTER_MODEL, "openrouter")
-            brain.resolve_issue("GROQ KEY")
-            print("[AI] OpenRouter success")
-            return result
-        except urllib.error.HTTPError as e:
-            body = ""
+        for or_model in OPENROUTER_FALLBACK_MODELS:
             try:
-                body = e.read().decode("utf-8", errors="ignore")[:300]
-            except Exception:
-                pass
-            print(f"[AI] OpenRouter HTTP error {e.code}: {body}")
-        except Exception as e:
-            print(f"[AI] OpenRouter failed ({type(e).__name__}): {e}")
+                print(f"[AI] Trying OpenRouter ({or_model})...")
+                result = _try_openai_compatible(OPENROUTER_URL, OPENROUTER_API_KEY, or_model, "openrouter")
+                # Strip thinking/reasoning blocks before returning
+                result = _strip_thinking(result)
+                if result:
+                    brain.resolve_issue("GROQ KEY")
+                    print(f"[AI] OpenRouter success ({or_model})")
+                    return result
+                print(f"[AI] OpenRouter returned empty after stripping ({or_model}), trying next...")
+            except urllib.error.HTTPError as e:
+                body = ""
+                try:
+                    body = e.read().decode("utf-8", errors="ignore")[:200]
+                except Exception:
+                    pass
+                print(f"[AI] OpenRouter HTTP error {e.code} ({or_model}): {body[:80]}")
+                if e.code == 429:
+                    continue  # rate limited, try next model
+                break  # other errors, stop trying
+            except Exception as e:
+                print(f"[AI] OpenRouter failed ({or_model}): {type(e).__name__}: {e}")
+                continue
 
     # 3. Try Ollama
     if not _ollama_ping():
