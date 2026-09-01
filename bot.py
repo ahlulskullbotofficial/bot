@@ -129,10 +129,21 @@ class BotBrain:
         self.groq_dead_keys: set = set()
         self.groq_key_dead: bool = False  # True when current key is invalid
 
+        # --- Request counters ---
+        self.groq_requests_today: int = 0
+        self.groq_request_date: str = ""
+
+        # --- OpenRouter model performance tracking ---
+        self.openrouter_last_good_model: str = ""  # model that worked last time
+        self.openrouter_fail_counts: dict = {}      # {model: consecutive_failures}
+
+        # --- Web search cache ---
+        # {query_hash: (result_str, timestamp)}
+        self.search_cache: dict = {}
+        self.search_cache_ttl: int = 300  # 5 minutes
+
         # --- Alert tracking (don't spam the same alert) ---
         self.alerted: set = set()   # set of alert IDs already sent
-
-    def log_event(self, system: str, event: str, user_id=None):
         entry = {
             "ts": datetime.now(timezone.utc).isoformat(),
             "system": system,
@@ -161,10 +172,15 @@ class BotBrain:
         state["message_count"] = state.get("message_count", 0) + 1
 
     def track_groq_request(self):
-        pass  # tracking handled by groq_key_index rotation
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if self.groq_request_date != today:
+            self.groq_requests_today = 0
+            self.groq_request_date = today
+        self.groq_requests_today += 1
 
     def groq_quota_warning(self) -> bool:
-        return False  # quota warnings not applicable with key rotation
+        """Return True if approaching Groq daily limit."""
+        return self.groq_requests_today > 12000
 
     def system_status(self) -> str:
         """Human-readable status string injected into AI context."""
@@ -219,6 +235,79 @@ class BotBrain:
             return False
         self.alerted.add(alert_id)
         return True
+
+    def get_cached_search(self, query: str):
+        """Return cached search result if fresh, else None."""
+        import time, hashlib
+        key = hashlib.md5(query.lower().encode()).hexdigest()
+        if key in self.search_cache:
+            result, ts = self.search_cache[key]
+            if time.time() - ts < self.search_cache_ttl:
+                return result
+            del self.search_cache[key]
+        return None
+
+    def cache_search(self, query: str, result: str):
+        """Cache a search result."""
+        import time, hashlib
+        key = hashlib.md5(query.lower().encode()).hexdigest()
+        self.search_cache[key] = (result, time.time())
+        # Prune cache if too large
+        if len(self.search_cache) > 100:
+            oldest = sorted(self.search_cache.items(), key=lambda x: x[1][1])[:20]
+            for k, _ in oldest:
+                del self.search_cache[k]
+
+    def record_openrouter_success(self, model: str):
+        """Remember which OpenRouter model worked."""
+        self.openrouter_last_good_model = model
+        self.openrouter_fail_counts[model] = 0
+
+    def record_openrouter_failure(self, model: str):
+        self.openrouter_fail_counts[model] = self.openrouter_fail_counts.get(model, 0) + 1
+
+    def best_openrouter_order(self, models: list) -> list:
+        """Return models sorted: last-known-good first, then by fewest failures."""
+        def score(m):
+            if m == self.openrouter_last_good_model:
+                return -1  # first
+            return self.openrouter_fail_counts.get(m, 0)
+        return sorted(models, key=score)
+
+    def detect_mood(self, text: str) -> str:
+        """Simple sentiment detection — updates user mood without any AI call."""
+        text_lower = text.lower()
+        if any(w in text_lower for w in ["sad", "depressed", "cry", "grief", "hurt", "pain", "inna lillahi"]):
+            return "sad"
+        if any(w in text_lower for w in ["happy", "excited", "love", "great", "amazing", "alhamdulillah", "mashallah"]):
+            return "positive"
+        if any(w in text_lower for w in ["angry", "mad", "furious", "hate", "stupid", "shut up", "idiot"]):
+            return "frustrated"
+        if any(w in text_lower for w in ["lol", "haha", "😂", "💀", "funny", "joke"]):
+            return "playful"
+        return "neutral"
+
+    def get_user_reply_style(self, user_id: int) -> str:
+        """Return a hint about how to reply to this user based on their history."""
+        state = self.get_user_state(user_id)
+        count = state.get("message_count", 0)
+        hints = []
+        if count > 50:
+            hints.append("long-time active member")
+        avg_len = state.get("avg_msg_len", 0)
+        if avg_len > 0 and avg_len < 20:
+            hints.append("prefers very short replies")
+        elif avg_len > 100:
+            hints.append("comfortable with detailed replies")
+        return ", ".join(hints) if hints else ""
+
+    def update_message_stats(self, user_id: int, message_len: int):
+        """Update rolling average message length for a user."""
+        state = self.get_user_state(user_id)
+        prev_avg = state.get("avg_msg_len", 0)
+        count = state.get("message_count", 1)
+        # Exponential moving average
+        state["avg_msg_len"] = (prev_avg * 0.9 + message_len * 0.1) if prev_avg else message_len
 
 
 # Global brain instance — imported and used by all subsystems
@@ -847,17 +936,15 @@ def _needs_search(message: str) -> bool:
         r"\b(release|launched|announced|update)\b",
     ]
     return any(re.search(p, msg, re.I) for p in search_triggers)
-    """Remove chain-of-thought / thinking blocks from AI responses.
-    Some models (nemotron, deepseek-r1 etc.) show their reasoning before the answer.
-    We strip everything up to and including common thinking markers.
-    """
+
+
+def _strip_thinking(text: str) -> str:
+    """Remove chain-of-thought / thinking blocks from AI responses."""
     if not text:
         return text
-    import re
     # Remove <think>...</think> blocks
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.S).strip()
     # Remove "Here's a thinking process:" style blocks
-    # Match the block from the marker to the first blank line after bullet points
     thinking_markers = [
         r"Here['']s a thinking process:.*?(?=\n\n[A-Z\*]|\Z)",
         r"Here's my thinking:.*?(?=\n\n[A-Z\*]|\Z)",
@@ -900,11 +987,14 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
             return result
 
     # 1. Try Groq (skip immediately if key is known dead)
-    if GROQ_API_KEY and not brain.groq_key_dead:
+    # Use brain's key rotation to try all available Groq keys
+    groq_key_to_use = brain.active_groq_key() if not brain.groq_key_dead else ""
+    if groq_key_to_use:
         try:
-            result = _try_openai_compatible(GROQ_URL, GROQ_API_KEY, GROQ_MODEL, "groq")
+            result = _try_openai_compatible(GROQ_URL, groq_key_to_use, GROQ_MODEL, "groq")
             result = _strip_thinking(result)
             brain.groq_key_dead = False
+            brain.track_groq_request()
             return result
         except urllib.error.HTTPError as e:
             body = ""
@@ -916,6 +1006,7 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
             brain.groq_alive = False
             if e.code in (401, 403):
                 brain.groq_key_dead = True
+                brain.mark_groq_key_dead(groq_key_to_use)
                 brain.add_known_issue(f"GROQ KEY INVALID (HTTP {e.code})")
                 print(f"[AI] Groq key invalid — trying OpenRouter")
             else:
@@ -924,9 +1015,10 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
             print(f"[AI] Groq failed ({type(e).__name__}: {e})")
             brain.groq_alive = False
 
-    # 2. Try OpenRouter (multiple models in sequence)
+    # 2. Try OpenRouter — use brain's smart ordering (last-good model first)
     if OPENROUTER_API_KEY:
-        for or_model in OPENROUTER_FALLBACK_MODELS:
+        ordered_models = brain.best_openrouter_order(OPENROUTER_FALLBACK_MODELS)
+        for or_model in ordered_models:
             try:
                 print(f"[AI] Trying OpenRouter ({or_model})...")
                 result = _try_openai_compatible(OPENROUTER_URL, OPENROUTER_API_KEY, or_model, "openrouter")
@@ -934,6 +1026,7 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
                 result = _strip_thinking(result)
                 if result:
                     brain.resolve_issue("GROQ KEY")
+                    brain.record_openrouter_success(or_model)
                     print(f"[AI] OpenRouter success ({or_model})")
                     return result
                 print(f"[AI] OpenRouter returned empty after stripping ({or_model}), trying next...")
@@ -949,6 +1042,7 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
                 break  # other errors, stop trying
             except Exception as e:
                 print(f"[AI] OpenRouter failed ({or_model}): {type(e).__name__}: {e}")
+                brain.record_openrouter_failure(or_model)
                 continue
 
     # 3. Try Ollama
@@ -989,20 +1083,34 @@ def make_ai_reply(history, user_message, member_context, visual=False, user_id=N
         if mood and mood != "neutral":
             system_parts.append(f"[User current mood detected: {mood}. Adjust tone accordingly.]")
 
+    # Inject user reply style hint
+    if user_id:
+        style_hint = brain.get_user_reply_style(user_id)
+        if style_hint:
+            system_parts.append(f"[User style: {style_hint}. Adapt your reply accordingly.]")
+
     # Auto-search: inject live web results when the question needs current data
     if _needs_search(user_message) and not visual:
-        search_results = _web_search(user_message)
+        # Check cache first to avoid redundant HTTP calls
+        cached = brain.get_cached_search(user_message)
+        if cached:
+            search_results = cached
+        else:
+            search_results = _web_search(user_message)
+            if search_results:
+                brain.cache_search(user_message, search_results)
         if search_results:
             system_parts.append(
                 f"[Web search results for context — use these to answer accurately, "
-                f"but reply in your normal style]:\n{search_results}"
+                f"but reply in your normal British roadman style]:\n{search_results}"
             )
 
     messages = [
         {"role": "system", "content": "\n\n".join(system_parts)}
     ] + history + [{"role": "user", "content": user_message}]
     max_tokens  = 180 if visual else 160
-    temperature = 0.2 if visual else 0.8    try:
+    temperature = 0.2 if visual else 0.8
+    try:
         result = _call_ai(messages, max_tokens=max_tokens, temperature=temperature)
         if result is None:
             return "I'm having trouble connecting to my AI right now. Try again in a sec."
@@ -1817,8 +1925,10 @@ async def answer_with_ai(message):
     except Exception:
         print("[Reply] Incoming message (could not print display name)")
 
-    # Update brain user state
-    brain.update_user_state(message.author.id, pending_voice=False)
+    # Update brain user state + detect mood
+    detected_mood = brain.detect_mood(stripped_content)
+    brain.update_user_state(message.author.id, pending_voice=False, mood=detected_mood)
+    brain.update_message_stats(message.author.id, len(stripped_content))
     brain.log_event("reply", "incoming", user_id=message.author.id)
 
     action, value = parse_control(stripped_content)
@@ -2192,7 +2302,21 @@ async def ollama_health_check():
         )
 
 
-@ollama_health_check.error
+@tasks.loop(minutes=5)
+async def dump_brain_state():
+    """Write brain state to a file so autofix.py can read it for smarter fixes."""
+    try:
+        state_lines = [
+            f"System: {brain.system_status()}",
+            f"Groq key dead: {brain.groq_key_dead}",
+            f"Groq requests today: {brain.groq_requests_today}",
+            f"Best OpenRouter model: {brain.openrouter_last_good_model}",
+            f"Known issues: {'; '.join(brain.known_issues[-5:]) if brain.known_issues else 'none'}",
+            f"Recent events: {', '.join(e['event'] for e in brain.event_log[-10:])}",
+        ]
+        Path(__file__).with_name("brain_state.txt").write_text("\n".join(state_lines), encoding="utf-8")
+    except Exception:
+        pass
 async def ollama_health_check_error(error):
     print(f"[Self-heal] Health check task error: {error}")
     traceback.print_exc()
@@ -2275,6 +2399,8 @@ async def on_ready():
         ollama_health_check.start()
     if not groq_health_check.is_running():
         groq_health_check.start()
+    if not dump_brain_state.is_running():
+        dump_brain_state.start()
     if not slash_commands_synced:
         try:
             # Only sync if command schema has changed — avoids hitting rate limits on every restart
@@ -2335,9 +2461,11 @@ async def botstatus(ctx):
     lines = [
         f"**System status:** {brain.system_status()}",
         f"**Groq requests today:** {brain.groq_requests_today}",
+        f"**Best OpenRouter model:** {brain.openrouter_last_good_model or 'not determined yet'}",
         f"**Ollama:** {'online' if brain.ollama_alive else 'offline'}",
-        f"**Groq:** {'online' if brain.groq_alive else 'offline'}",
+        f"**Groq:** {'online' if brain.groq_alive else 'offline/blocked'}",
         f"**ElevenLabs:** {'online' if brain.elevenlabs_alive else 'quota exhausted'}",
+        f"**Search cache entries:** {len(brain.search_cache)}",
     ]
     if brain.known_issues:
         lines.append(f"**Known issues:** {', '.join(brain.known_issues[-5:])}")

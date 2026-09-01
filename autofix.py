@@ -288,6 +288,15 @@ def build_fix_prompt(trigger_label, trigger_lines, recent_output):
     problem_block = "\n".join(trigger_lines)
     context_block = recent_output[-3000:]  # last 3000 chars of output
 
+    # Try to read brain's known_issues for extra context
+    brain_context = ""
+    try:
+        brain_file = BOT_FILE.parent / "brain_state.txt"
+        if brain_file.exists():
+            brain_context = f"\nKNOWN ISSUES FROM BOT BRAIN:\n{brain_file.read_text()}\n"
+    except Exception:
+        pass
+
     return f"""You are an expert Python bot debugger. The Discord bot produced this problem:
 
 === PROBLEM TYPE: {trigger_label.upper()} ===
