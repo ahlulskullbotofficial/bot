@@ -2474,6 +2474,7 @@ async def on_message(message):
                 print(f"Could not add auto-reaction: {error}")
         await bot.process_commands(message)
         return
+    is_pinged = bool(bot.user and bot.user in message.mentions)
     if is_pinged or await is_reply_to_bot(message):
         if message.author.id in autoreact_users and not message.content.strip().lower().startswith("!autoreactoff") and _can_autoreact(message.author.id):
             try:
