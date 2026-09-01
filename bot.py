@@ -30,7 +30,6 @@ load_dotenv(Path(__file__).with_name(".env"))
 import discord
 from discord.ext import commands, tasks
 from flag_identify import identify_flag
-from islamic_quiz import IslamicQuiz, LEVELS
 from PIL import Image, UnidentifiedImageError
 
 intents = discord.Intents.default()
@@ -42,7 +41,6 @@ console_started = False
 slash_commands_synced = False
 autoreact_file = Path(__file__).with_name("autoreact_users.json")
 memory_file = Path(__file__).with_name("bot_memory.sqlite3")
-quiz_file = Path(__file__).with_name("quiz_questions.json")
 BOT_REACTION = "\U0001f480"
 OLLAMA_MODEL = "llama3.2:3b"
 # Groq — loaded from .env. When set, all AI text replies use Groq instead of
@@ -95,7 +93,8 @@ _elevenlabs_quota_reset_month = None
 class BotBrain:
     def __init__(self):
         # --- Service health ---
-        self.ollama_alive      = True   # set by health check task
+        # Default ollama_alive to False if we have cloud AI keys (likely running on server)
+        self.ollama_alive      = not bool(os.environ.get("GROQ_API_KEY") or os.environ.get("OPENROUTER_API_KEY"))
         self.groq_alive        = True   # set by _call_ai on error
         self.elevenlabs_alive  = True   # set by TTS on quota error
 
@@ -112,9 +111,6 @@ class BotBrain:
 
         # --- Pending issues that need resolution ---
         self.known_issues: list = []
-
-        # --- Quiz awareness ---
-        self.active_quiz_channels: set = set()
 
         # --- Vision model cache ---
         self.vision_model: str = ""  # set once Ollama is available
@@ -846,7 +842,6 @@ autoreact_users = load_autoreact_users()
 # {user_id: last_reaction_timestamp}
 _autoreact_cooldown: dict = {}
 initialise_memory()
-quiz_game = IslamicQuiz(quiz_file, memory_file)
 
 
 def send_from_console():
@@ -881,42 +876,25 @@ def _web_search(query: str, max_results: int = 3) -> str:
     """
     Search DuckDuckGo Instant Answer API — free, no key needed.
     Returns a compact summary string to inject into the AI context.
+    Fast timeout (2s) so it never significantly delays replies.
     """
     try:
         encoded = urllib.request.quote(query[:200])
         url = f"https://api.duckduckgo.com/?q={encoded}&format=json&no_html=1&skip_disambig=1"
         req = urllib.request.Request(url, headers={"User-Agent": "AhlulSkullBot/1.0"})
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        with urllib.request.urlopen(req, timeout=2) as resp:
             data = json.loads(resp.read().decode("utf-8"))
 
         parts = []
-        # Instant answer
         if data.get("AbstractText"):
-            parts.append(data["AbstractText"][:400])
-        # Related topics
+            parts.append(data["AbstractText"][:300])
         for topic in data.get("RelatedTopics", [])[:max_results]:
             if isinstance(topic, dict) and topic.get("Text"):
-                parts.append(topic["Text"][:200])
+                parts.append(topic["Text"][:150])
         if parts:
             return "\n".join(parts)
-    except Exception as e:
-        print(f"[Search] DuckDuckGo failed: {e}")
-
-    # Fallback: DuckDuckGo HTML search scrape
-    try:
-        encoded = urllib.request.quote(query[:200])
-        url = f"https://html.duckduckgo.com/html/?q={encoded}"
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            html = resp.read().decode("utf-8", errors="ignore")
-        # Extract result snippets
-        snippets = re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', html, re.S)
-        clean = [re.sub(r'<[^>]+>', '', s).strip() for s in snippets[:3]]
-        if clean:
-            return "\n".join(clean)
-    except Exception as e:
-        print(f"[Search] Fallback search failed: {e}")
-
+    except Exception:
+        pass  # silent fail — don't slow down replies
     return ""
 
 
@@ -1310,7 +1288,7 @@ async def wait_for_visuals(message):
     )
     if not looks_like_gif:
         return message
-    await asyncio.sleep(1.5)
+    await asyncio.sleep(0.5)
     try:
         return await message.channel.fetch_message(message.id)
     except (discord.NotFound, discord.Forbidden, discord.HTTPException):
@@ -1330,7 +1308,10 @@ async def analyse_visual_attachments(message, caption):
         return ""  # no image — skip everything
 
     # There IS an image — now check if Ollama can handle it
-    if _ollama_was_down or not await asyncio.to_thread(_ollama_ping):
+    # Skip the ping entirely if brain already knows Ollama is down (saves 3s on server)
+    if _ollama_was_down or (not brain.ollama_alive):
+        return "[Image attached; vision analysis is only available when running locally with Ollama.]"
+    if not await asyncio.to_thread(_ollama_ping):
         return "[Image attached; vision analysis is only available when running locally with Ollama.]"
     last_failure = "[Image attached; it could not be analysed locally.]"
     for source_type, source in sources[:4]:
