@@ -788,7 +788,65 @@ def send_from_console():
             print(f"Could not send the message: {error}")
 
 
-def _strip_thinking(text: str) -> str:
+def _web_search(query: str, max_results: int = 3) -> str:
+    """
+    Search DuckDuckGo Instant Answer API — free, no key needed.
+    Returns a compact summary string to inject into the AI context.
+    """
+    try:
+        encoded = urllib.request.quote(query[:200])
+        url = f"https://api.duckduckgo.com/?q={encoded}&format=json&no_html=1&skip_disambig=1"
+        req = urllib.request.Request(url, headers={"User-Agent": "AhlulSkullBot/1.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+
+        parts = []
+        # Instant answer
+        if data.get("AbstractText"):
+            parts.append(data["AbstractText"][:400])
+        # Related topics
+        for topic in data.get("RelatedTopics", [])[:max_results]:
+            if isinstance(topic, dict) and topic.get("Text"):
+                parts.append(topic["Text"][:200])
+        if parts:
+            return "\n".join(parts)
+    except Exception as e:
+        print(f"[Search] DuckDuckGo failed: {e}")
+
+    # Fallback: DuckDuckGo HTML search scrape
+    try:
+        encoded = urllib.request.quote(query[:200])
+        url = f"https://html.duckduckgo.com/html/?q={encoded}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+        # Extract result snippets
+        snippets = re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', html, re.S)
+        clean = [re.sub(r'<[^>]+>', '', s).strip() for s in snippets[:3]]
+        if clean:
+            return "\n".join(clean)
+    except Exception as e:
+        print(f"[Search] Fallback search failed: {e}")
+
+    return ""
+
+
+def _needs_search(message: str) -> bool:
+    """
+    Detect if a message needs live internet data to answer properly.
+    Returns True for questions about current events, prices, news, etc.
+    """
+    msg = message.lower()
+    search_triggers = [
+        r"\b(latest|current|today|now|recent|news|2024|2025|2026)\b",
+        r"\b(price|cost|how much|stock|rate|exchange)\b",
+        r"\b(who is|what is|where is|when is|why is|how is)\b.{0,40}\?",
+        r"\b(search|look up|find|google|check)\b",
+        r"\b(weather|forecast|temperature)\b",
+        r"\b(score|result|match|game|tournament)\b",
+        r"\b(release|launched|announced|update)\b",
+    ]
+    return any(re.search(p, msg, re.I) for p in search_triggers)
     """Remove chain-of-thought / thinking blocks from AI responses.
     Some models (nemotron, deepseek-r1 etc.) show their reasoning before the answer.
     We strip everything up to and including common thinking markers.
@@ -931,12 +989,20 @@ def make_ai_reply(history, user_message, member_context, visual=False, user_id=N
         if mood and mood != "neutral":
             system_parts.append(f"[User current mood detected: {mood}. Adjust tone accordingly.]")
 
+    # Auto-search: inject live web results when the question needs current data
+    if _needs_search(user_message) and not visual:
+        search_results = _web_search(user_message)
+        if search_results:
+            system_parts.append(
+                f"[Web search results for context — use these to answer accurately, "
+                f"but reply in your normal style]:\n{search_results}"
+            )
+
     messages = [
         {"role": "system", "content": "\n\n".join(system_parts)}
     ] + history + [{"role": "user", "content": user_message}]
     max_tokens  = 180 if visual else 160
-    temperature = 0.2 if visual else 0.8
-    try:
+    temperature = 0.2 if visual else 0.8    try:
         result = _call_ai(messages, max_tokens=max_tokens, temperature=temperature)
         if result is None:
             return "I'm having trouble connecting to my AI right now. Try again in a sec."
