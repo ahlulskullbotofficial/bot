@@ -756,7 +756,8 @@ def forget_user(user_id):
 autoreact_users = load_autoreact_users()
 # Cooldown tracker for autoreact to avoid Discord rate limits
 # {user_id: last_reaction_timestamp}
-_autoreact_cooldown: dict = {}initialise_memory()
+_autoreact_cooldown: dict = {}
+initialise_memory()
 quiz_game = IslamicQuiz(quiz_file, memory_file)
 
 
