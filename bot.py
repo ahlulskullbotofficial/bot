@@ -64,8 +64,7 @@ OPENROUTER_FALLBACK_MODELS = [
     "google/gemma-4-26b-a4b-it:free",
     "minimax/minimax-m2.7:free",
     "z-ai/glm-5.2:free",
-]
-# Prefer Qwen2.5-VL; fall back to moondream only if nothing else is installed.
+]# Prefer Qwen2.5-VL; fall back to moondream only if nothing else is installed.
 PREFERRED_VISION_MODELS = (
     "qwen2.5vl:3b",
     "qwen2.5vl:7b",
@@ -846,6 +845,7 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
     if GROQ_API_KEY and not brain.groq_key_dead:
         try:
             result = _try_openai_compatible(GROQ_URL, GROQ_API_KEY, GROQ_MODEL, "groq")
+            result = _strip_thinking(result)
             brain.groq_key_dead = False
             return result
         except urllib.error.HTTPError as e:
@@ -859,7 +859,7 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
             if e.code in (401, 403):
                 brain.groq_key_dead = True
                 brain.add_known_issue(f"GROQ KEY INVALID (HTTP {e.code})")
-                print(f"[AI] Groq key invalid — trying OpenRouter fallback")
+                print(f"[AI] Groq key invalid — trying OpenRouter")
             else:
                 brain.add_known_issue(f"Groq HTTP {e.code}")
         except Exception as e:
