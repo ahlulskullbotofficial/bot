@@ -2415,10 +2415,10 @@ async def on_ready():
         valid = 0
         for i, key in enumerate(brain.openrouter_keys):
             try:
-                # Use the /auth/key endpoint — returns key info without spending quota
+                # GET /api/v1/key — returns key info without spending any quota
                 async with aiohttp.ClientSession() as s:
                     async with s.get(
-                        "https://openrouter.ai/api/v1/auth/key",
+                        "https://openrouter.ai/api/v1/key",
                         headers={"Authorization": f"Bearer {key}"},
                         timeout=aiohttp.ClientTimeout(total=8)
                     ) as r:
