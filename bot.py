@@ -49,14 +49,13 @@ OPENROUTER_API_KEY_2 = os.environ.get("OPENROUTER_API_KEY_2", "")
 OPENROUTER_API_KEY_3 = os.environ.get("OPENROUTER_API_KEY_3", "")
 OPENROUTER_API_KEY_4 = os.environ.get("OPENROUTER_API_KEY_4", "")
 OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
-# Fallback model list — tried in order per key. brain.best_openrouter_order() sorts by success history.
-# Listed from most chat-friendly to least. Reasoning models (nemotron, gemma) are last
-# because they leak thinking blocks even when told not to.
+# Fallback model list — verified working free models on OpenRouter (August 2026).
+# brain.best_openrouter_order() puts the last-successful model first.
 OPENROUTER_FALLBACK_MODELS = [
-    "openai/gpt-oss-20b:free",            # general + fast, non-reasoning
-    "nvidia/nemotron-3.5-lightning:free", # reasoning model — thinking separated via include_reasoning
-    "google/gemma-4-31b-it:free",         # reasoning model — thinking separated via include_reasoning
-    "nvidia/nemotron-3-nano-9b-v2:free",  # lightweight fallback
+    "nvidia/nemotron-3.5-lightning:free",
+    "google/gemma-4-31b-it:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
 ]# Prefer Qwen2.5-VL; fall back to moondream only if nothing else is installed.
 PREFERRED_VISION_MODELS = (
     "qwen2.5vl:3b",
@@ -1108,7 +1107,8 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
             break  # no more live keys
         tried_keys.add(current_key)
 
-        all_models_429 = True  # track if every model 429'd on this key
+        quota_hit_count = 0   # models that returned 429 on this key
+        hard_error_count = 0  # models that returned 400/404 (broken model IDs)
         for or_model in ordered_models:
             payload = {
                 "model": or_model,
@@ -1139,26 +1139,26 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
                                 print(f"[AI] OpenRouter success ({or_model})", flush=True)
                                 return result
                             print(f"[AI] Empty after stripping ({or_model}), trying next...", flush=True)
-                            all_models_429 = False
                         elif resp.status == 429:
-                            body = await resp.text()
                             print(f"[AI] OpenRouter 429 ({or_model}): quota hit", flush=True)
                             brain.record_openrouter_failure(or_model)
-                            # 429 = quota — keep all_models_429 = True, try next model
+                            quota_hit_count += 1
                         else:
                             body = await resp.text()
                             print(f"[AI] OpenRouter HTTP {resp.status} ({or_model}): {body[:120]}", flush=True)
                             brain.record_openrouter_failure(or_model)
-                            all_models_429 = False
+                            hard_error_count += 1
             except Exception as e:
                 print(f"[AI] OpenRouter exception ({or_model}): {type(e).__name__}: {e}", flush=True)
                 brain.record_openrouter_failure(or_model)
-                all_models_429 = False
+                hard_error_count += 1
 
-        if all_models_429:
-            # Every model 429'd on this key — rotate to next key
+        # Rotate key if every working model 429'd (quota exhausted on this key).
+        # Ignore hard errors (400/404) — those are bad model IDs, not a key problem.
+        working_models = len(ordered_models) - hard_error_count
+        if working_models > 0 and quota_hit_count >= working_models:
             brain.mark_openrouter_key_exhausted(current_key)
-            # Loop will try next key
+            # Loop continues to try the next key
 
     # Ollama local fallback
     if brain.ollama_alive and _ollama_ping():
