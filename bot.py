@@ -935,8 +935,9 @@ def _strip_thinking(text: str) -> str:
 
 def _call_ai(messages, max_tokens=160, temperature=0.8):
     """
-    Unified AI caller. Priority: OpenRouter → Ollama.
-    Groq removed — account blocked. OpenRouter is the primary provider.
+    Sync AI caller for use in threads (summarisation, fact extraction).
+    For the main reply path use _call_ai_async instead.
+    OpenRouter only — Groq removed, Ollama local fallback.
     """
     def _try_openrouter(model):
         payload = json.dumps({
@@ -959,38 +960,23 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
             result = json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"].strip()
             return _strip_thinking(result)
 
-    # 1. Try OpenRouter — use brain's smart ordering (last-good model first)
     if not OPENROUTER_API_KEY:
-        print("[AI] OPENROUTER_API_KEY is not set — cannot call OpenRouter")
+        print("[AI] OPENROUTER_API_KEY is not set — cannot call OpenRouter", flush=True)
     else:
         ordered_models = brain.best_openrouter_order(OPENROUTER_FALLBACK_MODELS)
         for or_model in ordered_models:
             try:
-                print(f"[AI] Trying OpenRouter ({or_model})...")
                 result = _try_openrouter(or_model)
                 if result:
                     brain.record_openrouter_success(or_model)
-                    brain.log_event("openrouter", "reply_ok")
-                    print(f"[AI] OpenRouter success ({or_model})")
                     return result
-                print(f"[AI] OpenRouter returned empty after stripping ({or_model}), trying next...")
-            except urllib.error.HTTPError as e:
-                body = ""
-                try:
-                    body = e.read().decode("utf-8", errors="ignore")[:200]
-                except Exception:
-                    pass
-                print(f"[AI] OpenRouter HTTP {e.code} ({or_model}): {body[:120]}")
-                brain.record_openrouter_failure(or_model)
-                continue  # always try the next model regardless of error code
             except Exception as e:
-                print(f"[AI] OpenRouter failed ({or_model}): {type(e).__name__}: {e}")
+                print(f"[AI][sync] OpenRouter failed ({or_model}): {type(e).__name__}: {e}", flush=True)
                 brain.record_openrouter_failure(or_model)
                 continue
 
-    # 2. Ollama local fallback (only useful when running locally)
+    # Ollama local fallback
     if not _ollama_ping():
-        print("[AI] All providers unavailable — OpenRouter failed, Ollama unreachable")
         return None
     payload = json.dumps({
         "model": OLLAMA_MODEL,
@@ -1006,11 +992,73 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
         with urllib.request.urlopen(req, timeout=60) as response:
             return json.loads(response.read().decode("utf-8"))["message"]["content"].strip()
     except urllib.error.URLError:
-        print("[AI] Ollama URLError")
         return None
 
 
-def make_ai_reply(history, user_message, member_context, visual=False, user_id=None):
+async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
+    """
+    Async AI caller using aiohttp — used for all live reply paths.
+    aiohttp handles SSL/connection pooling much better than urllib on Python 3.14.
+    """
+    import aiohttp
+
+    if not OPENROUTER_API_KEY:
+        print("[AI] OPENROUTER_API_KEY is not set!", flush=True)
+        return None
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "HTTP-Referer": "https://github.com",
+        "X-Title": "AhlulSkullBot",
+    }
+
+    ordered_models = brain.best_openrouter_order(OPENROUTER_FALLBACK_MODELS)
+    for or_model in ordered_models:
+        payload = {
+            "model": or_model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        }
+        try:
+            print(f"[AI] Trying OpenRouter ({or_model})...", flush=True)
+            timeout = aiohttp.ClientTimeout(total=15)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(OPENROUTER_URL, json=payload, headers=headers) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        result = data["choices"][0]["message"]["content"].strip()
+                        result = _strip_thinking(result)
+                        if result:
+                            brain.record_openrouter_success(or_model)
+                            brain.log_event("openrouter", "reply_ok")
+                            print(f"[AI] OpenRouter success ({or_model})", flush=True)
+                            return result
+                        print(f"[AI] OpenRouter empty after stripping ({or_model}), trying next...", flush=True)
+                    else:
+                        body = await resp.text()
+                        print(f"[AI] OpenRouter HTTP {resp.status} ({or_model}): {body[:120]}", flush=True)
+                        brain.record_openrouter_failure(or_model)
+                        continue
+        except Exception as e:
+            print(f"[AI] OpenRouter exception ({or_model}): {type(e).__name__}: {e}", flush=True)
+            brain.record_openrouter_failure(or_model)
+            continue
+
+    # Ollama local fallback
+    if brain.ollama_alive and _ollama_ping():
+        try:
+            result = await asyncio.to_thread(_call_ai, messages, max_tokens, temperature)
+            return result
+        except Exception:
+            pass
+
+    print("[AI] All providers failed.", flush=True)
+    return None
+
+
+async def make_ai_reply(history, user_message, member_context, visual=False, user_id=None):
     # Build a rich system prompt that includes brain awareness
     system_parts = [AI_INSTRUCTIONS, current_time_context(), member_context]
 
@@ -1064,12 +1112,12 @@ def make_ai_reply(history, user_message, member_context, visual=False, user_id=N
     max_tokens  = 180 if visual else 160
     temperature = 0.2 if visual else 0.8
     try:
-        result = _call_ai(messages, max_tokens=max_tokens, temperature=temperature)
+        result = await _call_ai_async(messages, max_tokens=max_tokens, temperature=temperature)
         if result is None:
             return "I'm having trouble connecting to my AI right now. Try again in a sec."
         return result
     except Exception as e:
-        print(f"[AI] make_ai_reply failed: {type(e).__name__}: {e}")
+        print(f"[AI] make_ai_reply failed: {type(e).__name__}: {e}", flush=True)
         return None
 
 
@@ -1389,13 +1437,13 @@ async def answer_voice_message(message):
     )
     try:
         async with message.channel.typing():
-            reply = await asyncio.to_thread(make_ai_reply, history, transcript, member_context, False, message.author.id)
+            reply = await make_ai_reply(history, transcript, member_context, False, message.author.id)
     except Exception as error:
         print(f"[AI] Voice transcription AI failed: {type(error).__name__}: {error}")
         brain.log_event("ai", f"voice_ai_failed_{type(error).__name__}", user_id=message.author.id)
         try:
             await asyncio.sleep(3)
-            reply = await asyncio.to_thread(make_ai_reply, history, transcript, member_context, False, message.author.id)
+            reply = await make_ai_reply(history, transcript, member_context, False, message.author.id)
         except Exception:
             reply = "I heard you, gimme a sec — my brain just glitched. Try again?"
     reply = (reply or "I heard you, but I need a second - say that again, yeah?")[:1500]
@@ -2018,9 +2066,7 @@ async def _answer_with_ai_inner(message, stripped_content):
 
     try:
         async with message.channel.typing():
-            reply = await asyncio.to_thread(
-                make_ai_reply, history, ai_user_message, member_context, bool(image_description), message.author.id
-            )
+            reply = await make_ai_reply(history, ai_user_message, member_context, bool(image_description), message.author.id)
         reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
         # Validate reply — regenerate on system errors, empty replies, and image errors
         sane, reason = _is_reply_sane(user_message, reply)
@@ -2028,23 +2074,19 @@ async def _answer_with_ai_inner(message, stripped_content):
             safe_prompt = user_message + "\n\n[Reply naturally. Do not mention images, vision, Ollama, or system errors.]"
             try:
                 async with message.channel.typing():
-                    regen = await asyncio.to_thread(
-                        make_ai_reply, history, safe_prompt, member_context, False, message.author.id
-                    )
+                    regen = await make_ai_reply(history, safe_prompt, member_context, False, message.author.id)
                 if regen and regen.strip():
                     reply = regen[:1900]
             except Exception:
                 pass
     except Exception as error:
-        print(f"[AI] Request failed: {type(error).__name__}: {error}")
+        print(f"[AI] Request failed: {type(error).__name__}: {error}", flush=True)
         brain.log_event("ai", f"reply_failed_{type(error).__name__}", user_id=message.author.id)
         brain.add_known_issue(f"AI reply failed: {type(error).__name__}")
         # Quick retry with no sleep
         try:
             async with message.channel.typing():
-                reply = await asyncio.to_thread(
-                    make_ai_reply, history, ai_user_message, member_context, bool(image_description), message.author.id
-                )
+                reply = await make_ai_reply(history, ai_user_message, member_context, bool(image_description), message.author.id)
             reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
         except Exception:
             await message.reply("Try again in a sec.", mention_author=False)
