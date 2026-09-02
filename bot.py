@@ -955,12 +955,14 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
             },
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=5) as response:
+        with urllib.request.urlopen(req, timeout=10) as response:
             result = json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"].strip()
             return _strip_thinking(result)
 
     # 1. Try OpenRouter — use brain's smart ordering (last-good model first)
-    if OPENROUTER_API_KEY:
+    if not OPENROUTER_API_KEY:
+        print("[AI] OPENROUTER_API_KEY is not set — cannot call OpenRouter")
+    else:
         ordered_models = brain.best_openrouter_order(OPENROUTER_FALLBACK_MODELS)
         for or_model in ordered_models:
             try:
@@ -978,11 +980,9 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
                     body = e.read().decode("utf-8", errors="ignore")[:200]
                 except Exception:
                     pass
-                print(f"[AI] OpenRouter HTTP {e.code} ({or_model}): {body[:80]}")
+                print(f"[AI] OpenRouter HTTP {e.code} ({or_model}): {body[:120]}")
                 brain.record_openrouter_failure(or_model)
-                if e.code == 429:
-                    continue  # rate limited — try next model
-                break         # hard error — stop trying
+                continue  # always try the next model regardless of error code
             except Exception as e:
                 print(f"[AI] OpenRouter failed ({or_model}): {type(e).__name__}: {e}")
                 brain.record_openrouter_failure(or_model)
