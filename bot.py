@@ -966,10 +966,10 @@ def _strip_thinking(text: str) -> str:
     if not text:
         return text
 
-    # Remove <think>...</think> blocks
+    # 1. Remove <think>...</think> blocks
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.S).strip()
 
-    # Remove explicit thinking headers and everything until the next real paragraph
+    # 2. Remove explicit thinking headers + everything that follows until blank line
     thinking_markers = [
         r"Here['']s a thinking process:.*?(?=\n\n|\Z)",
         r"Here's my thinking:.*?(?=\n\n|\Z)",
@@ -988,32 +988,86 @@ def _strip_thinking(text: str) -> str:
         r"Looking at my instructions.*?(?=\n\n|\Z)",
         r"Looking at the (context|instructions|conversation).*?(?=\n\n|\Z)",
         r"Based on (my|the) instructions.*?(?=\n\n|\Z)",
+        r"User style:.*?(?=\n\n|\Z)",
+        r"\[User style.*?\]",
+        r"\[User current mood.*?\]",
+        r"\[Conversation context.*?\]",
+        r"\[System status.*?\]",
+        r"\[Web search.*?\]",
     ]
     for pattern in thinking_markers:
         text = re.sub(pattern, '', text, flags=re.S | re.I).strip()
 
-    # Last-resort heuristic: if the text still starts with an internal-monologue
-    # sentence (reasoning about what to say rather than saying it), and there are
-    # multiple paragraphs, drop everything before the final paragraph break.
-    # Signs of internal monologue: starts with "I ", "The user", "User said",
-    # "This is a", contains phrases like "I should", "I need to", "I want to".
+    if not text:
+        return text
+
+    # 3. Line-by-line filter: drop any line that looks like internal reasoning.
+    # This catches single-paragraph models that don't use blank line separators.
+    reasoning_line_signals = [
+        r'^(okay|ok|alright|so|now|well),?\s+i.{0,60}$',
+        r"^i('ll| will| should| need to| want to| must| can| am going to).{0,80}$",
+        r'^(the user|this user|they).{0,80}$',
+        r'^(let me|let\'s).{0,60}$',
+        r'^my (response|reply|answer|goal).{0,60}$',
+        r'^(user style|user mood|system status|conversation context):',
+        r'^\[user ',
+        r'^(thinking|reasoning|planning):',
+        r"^i'll go with",
+        r"^i'll (keep|make|use|try|aim|go)",
+        r'^actually,?\s+i',
+        r'^(british roadman|roadman style)',
+    ]
+    lines = text.split('\n')
+    filtered = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            filtered.append(line)
+            continue
+        is_reasoning = any(re.match(p, stripped, re.I) for p in reasoning_line_signals)
+        if not is_reasoning:
+            filtered.append(line)
+    text = '\n'.join(filtered).strip()
+
+    if not text:
+        return text
+
+    # 4. Multi-paragraph fallback: if first paragraph still looks like monologue, drop it
     paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
     if len(paragraphs) > 1:
         first = paragraphs[0].lower()
         monologue_signals = [
             'the user', 'user said', 'this is a', 'i should', 'i need to',
-            'i want to', 'i\'m going', 'i will reply', 'i\'ll reply',
-            'i must', 'my response', 'let me', 'i have to', 'i\'m a',
+            'i want to', "i'm going", 'i will reply', "i'll reply",
+            'i must', 'my response', 'let me', 'i have to', "i'm a",
             'playful', 'british roadman', 'current context', 'i can reply',
             'looking at my', 'looking at the', 'based on my', 'based on the',
-            'my instructions', 'the instructions', 'i\'m a welcoming',
+            'my instructions', 'the instructions', "i'm a welcoming",
+            'user style', 'system status',
         ]
         if any(sig in first for sig in monologue_signals):
-            # Drop all leading reasoning paragraphs, keep only the final one
-            # (which is the actual reply)
             text = paragraphs[-1]
 
     return text.strip()
+
+
+def _looks_like_fragment(text: str) -> bool:
+    """Return True if the reply looks like a leaked reasoning fragment, not a real reply."""
+    if not text or len(text) > 300:
+        return False
+    t = text.strip().lower()
+    fragment_signals = [
+        r"^(i'll|i will|i should|i need to|i want to|i must|i can|i'm going)",
+        r"^(okay|ok|alright|so|well|now),?\s+i",
+        r"^(let me|let's)\b",
+        r"^actually,?\s+i",
+        r"^(the user|this user)\b",
+        r"^user style:",
+        r"^my (response|reply|answer)\b",
+        r"^(british roadman|roadman style)\b",
+        r"^(thinking|planning|reasoning):",
+    ]
+    return any(re.match(p, t) for p in fragment_signals)
 
 
 def _call_ai(messages, max_tokens=160, temperature=0.8):
@@ -2182,10 +2236,10 @@ async def _answer_with_ai_inner(message, stripped_content):
         async with message.channel.typing():
             reply = await make_ai_reply(history, ai_user_message, member_context, bool(image_description), message.author.id)
         reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
-        # Validate reply — regenerate on system errors, empty replies, and image errors
+        # Validate reply — regenerate on system errors, empty replies, image errors, or leaked fragments
         sane, reason = _is_reply_sane(user_message, reply)
-        if not sane:
-            safe_prompt = user_message + "\n\n[Reply naturally. Do not mention images, vision, Ollama, or system errors.]"
+        if not sane or _looks_like_fragment(reply):
+            safe_prompt = user_message + "\n\n[IMPORTANT: Reply directly and naturally. Output ONLY your actual reply, nothing else.]"
             try:
                 async with message.channel.typing():
                     regen = await make_ai_reply(history, safe_prompt, member_context, False, message.author.id)
