@@ -50,9 +50,13 @@ OPENROUTER_API_KEY_3 = os.environ.get("OPENROUTER_API_KEY_3", "")
 OPENROUTER_API_KEY_4 = os.environ.get("OPENROUTER_API_KEY_4", "")
 OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
 # Fallback model list — tried in order per key. brain.best_openrouter_order() sorts by success history.
+# Listed from most chat-friendly to least. Reasoning models (nemotron, gemma) are last
+# because they leak thinking blocks even when told not to.
 OPENROUTER_FALLBACK_MODELS = [
-    "nvidia/nemotron-3.5-lightning:free",
-    "google/gemma-4-31b-it:free",
+    "inclusionai/ling-3.0-flash:free",   # fast general instruction, non-reasoning
+    "openai/gpt-oss-20b:free",            # general + fast, non-reasoning
+    "nvidia/nemotron-3.5-lightning:free", # reasoning model — strip thinking blocks
+    "google/gemma-4-31b-it:free",         # reasoning model — strip thinking blocks
 ]# Prefer Qwen2.5-VL; fall back to moondream only if nothing else is installed.
 PREFERRED_VISION_MODELS = (
     "qwen2.5vl:3b",
@@ -982,6 +986,9 @@ def _strip_thinking(text: str) -> str:
         r"My response should.*?(?=\n\n|\Z)",
         r"Current context:.*?(?=\n\n|\Z)",
         r"Playful British roadman.*?(?=\n\n|\Z)",
+        r"Looking at my instructions.*?(?=\n\n|\Z)",
+        r"Looking at the (context|instructions|conversation).*?(?=\n\n|\Z)",
+        r"Based on (my|the) instructions.*?(?=\n\n|\Z)",
     ]
     for pattern in thinking_markers:
         text = re.sub(pattern, '', text, flags=re.S | re.I).strip()
@@ -999,6 +1006,8 @@ def _strip_thinking(text: str) -> str:
             'i want to', 'i\'m going', 'i will reply', 'i\'ll reply',
             'i must', 'my response', 'let me', 'i have to', 'i\'m a',
             'playful', 'british roadman', 'current context', 'i can reply',
+            'looking at my', 'looking at the', 'based on my', 'based on the',
+            'my instructions', 'the instructions', 'i\'m a welcoming',
         ]
         if any(sig in first for sig in monologue_signals):
             # Drop all leading reasoning paragraphs, keep only the final one
