@@ -572,16 +572,22 @@ def run():
                 fix_attempts += 1
                 last_backup = list(sorted(BACKUP_DIR.glob("bot_*.py")))[-1] if BACKUP_DIR.exists() else None
                 log("[AutoFix] Patch applied — restarting bot with fix...")
-                time.sleep(2)
-                continue
+            else:
+                fix_attempts += 1
+                log(f"[AutoFix] Patch failed — will retry or roll back next cycle (attempt {fix_attempts}/{MAX_FIX_ATTEMPTS}).")
+            time.sleep(2)
+            continue
 
-        elif fix_attempts >= MAX_FIX_ATTEMPTS:
-            log(f"[AutoFix] Max fix attempts reached.")
+        elif needs_fix and fix_attempts >= MAX_FIX_ATTEMPTS:
+            log(f"[AutoFix] Max fix attempts ({MAX_FIX_ATTEMPTS}) reached.")
             if last_backup and last_backup.exists():
-                log("[AutoFix] Rolling back to last backup...")
+                log("[AutoFix] Rolling back to last known-good backup...")
                 restore_backup(last_backup)
-                fix_attempts = 0
-                last_backup  = None
+            else:
+                log("[AutoFix] No backup available — resetting attempt counter and retrying.")
+            # Always reset so the bot can recover instead of staying stuck forever.
+            fix_attempts = 0
+            last_backup  = None
             time.sleep(3)
 
         log("[AutoFix] Restarting in 5 seconds...")

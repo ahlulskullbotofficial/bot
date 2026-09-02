@@ -55,13 +55,11 @@ GROQ_URL      = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_MODEL   = "nvidia/nemotron-3.5-lightning:free"
-# Fallback model list — tried in order if primary fails
+# Fallback model list — trimmed to models that actually respond (others return 429/404).
+# Fewer models = faster worst-case: 2 models × 5s timeout = 10s max instead of 25s.
 OPENROUTER_FALLBACK_MODELS = [
     "nvidia/nemotron-3.5-lightning:free",
     "google/gemma-4-31b-it:free",
-    "google/gemma-4-26b-a4b-it:free",
-    "minimax/minimax-m2.7:free",
-    "z-ai/glm-5.2:free",
 ]# Prefer Qwen2.5-VL; fall back to moondream only if nothing else is installed.
 PREFERRED_VISION_MODELS = (
     "qwen2.5vl:3b",
@@ -84,6 +82,34 @@ ELEVENLABS_MODEL = "eleven_multilingual_v2"
 
 # ElevenLabs monthly quota reset tracking (month number when quota was exhausted)
 _elevenlabs_quota_reset_month = None
+
+# Emotion triggers used by the voice reply system.
+# Defined once at module level — not recreated on every message.
+_EMOTION_TRIGGERS = {
+    "cry": ("*sobs* *sniffles*", "sad"),
+    "crying": ("*sobs* *sniffles*", "sad"),
+    "laugh": ("*laughs* hahaha!", "laughs"),
+    "laughing": ("*laughs* hahaha!", "laughs"),
+    "scream": ("*screams*", "shouting"),
+    "screaming": ("*screams*", "shouting"),
+    "sing": (None, None),
+    "whisper": ("*whispers*", "whispers"),
+    "whispering": ("*whispers*", "whispers"),
+    "sob": ("*sobs*", "sad"),
+    "sobbing": ("*sobs*", "sad"),
+    "giggle": ("*giggles*", "giggles"),
+    "giggling": ("*giggles*", "giggles"),
+    "chuckle": ("*chuckles*", "chuckles"),
+    "shout": ("*shouts*", "shouting"),
+    "shouting": ("*shouts*", "shouting"),
+    "yell": ("*shouts*", "shouting"),
+    "sigh": ("*sighs*", "sighs"),
+    "sighing": ("*sighs*", "sighs"),
+    "roar": ("*roars*", "shouting"),
+    "growl": ("*growls*", "angry"),
+    "whimper": ("*whimpers*", "sad"),
+    "weep": ("*sobs*", "sad"),
+}
 
 # ============================================================================
 # BOT BRAIN — unified cognitive state shared across all subsystems.
@@ -1440,8 +1466,10 @@ async def answer_voice_message(message):
     asyncio.get_running_loop().run_in_executor(
         None, remember_member_facts, message.author.id, guild_id, transcript
     )
-    history = recent_memory(message.author.id, message.channel.id)
-    member_context = member_memory_context(message.author.id, guild_id, message.author.display_name)
+    history = await asyncio.to_thread(recent_memory, message.author.id, message.channel.id)
+    member_context = await asyncio.to_thread(
+        member_memory_context, message.author.id, guild_id, message.author.display_name
+    )
     try:
         async with message.channel.typing():
             reply = await asyncio.to_thread(make_ai_reply, history, transcript, member_context, False, message.author.id)
@@ -2039,36 +2067,14 @@ async def _answer_with_ai_inner(message, stripped_content):
         None, remember_member_facts, message.author.id, guild_id, stripped_content
     )
     # Old chat turns often contain wrong picture guesses; don't let them override a new image.
-    history = [] if image_description else recent_memory(message.author.id, message.channel.id)
-    member_context = member_memory_context(message.author.id, guild_id, message.author.display_name)
+    history = [] if image_description else await asyncio.to_thread(
+        recent_memory, message.author.id, message.channel.id
+    )
+    member_context = await asyncio.to_thread(
+        member_memory_context, message.author.id, guild_id, message.author.display_name
+    )
 
     # Detect emotional voice requests early so we can prime the AI properly.
-    # Maps trigger words to the emotion tag the AI should produce.
-    _EMOTION_TRIGGERS = {
-        "cry": ("*sobs* *sniffles*", "sad"),
-        "crying": ("*sobs* *sniffles*", "sad"),
-        "laugh": ("*laughs* hahaha!", "laughs"),
-        "laughing": ("*laughs* hahaha!", "laughs"),
-        "scream": ("*screams*", "shouting"),
-        "screaming": ("*screams*", "shouting"),
-        "sing": (None, None),
-        "whisper": ("*whispers*", "whispers"),
-        "whispering": ("*whispers*", "whispers"),
-        "sob": ("*sobs*", "sad"),
-        "sobbing": ("*sobs*", "sad"),
-        "giggle": ("*giggles*", "giggles"),
-        "giggling": ("*giggles*", "giggles"),
-        "chuckle": ("*chuckles*", "chuckles"),
-        "shout": ("*shouts*", "shouting"),
-        "shouting": ("*shouts*", "shouting"),
-        "yell": ("*shouts*", "shouting"),
-        "sigh": ("*sighs*", "sighs"),
-        "sighing": ("*sighs*", "sighs"),
-        "roar": ("*roars*", "shouting"),
-        "growl": ("*growls*", "angry"),
-        "whimper": ("*whimpers*", "sad"),
-        "weep": ("*sobs*", "sad"),
-    }
     voice_emotion_hint = None
     if requests_voice_reply(user_message):
         msg_lower = user_message.lower()
@@ -2500,131 +2506,6 @@ async def memory(ctx):
     lines = [f"\U00002022 **{key.replace('_', ' ').title()}:** {value}" for key, value in rows]
     await ctx.send("\U0001F9E0 **Your saved memory**\n" + "\n".join(lines))
 
-
-@bot.hybrid_group(name="quiz", invoke_without_command=True, description="Play or manage the Islamic quiz game.")
-async def quiz_command(ctx, level: str = "advanced", rounds: int = 5):
-    """Start a solo quiz: !quiz [beginner|intermediate|advanced] [rounds]."""
-    await quiz_game.create_solo(ctx, level.lower(), rounds)
-
-
-@quiz_command.command(name="solo", description="Start a solo quiz with a level and number of rounds.")
-async def quiz_solo(ctx, level: str = "advanced", rounds: int = 5):
-    """Start a solo quiz with a level and number of rounds."""
-    await quiz_game.create_solo(ctx, level.lower(), rounds)
-
-
-@quiz_command.command(name="multi", description="Create a multiplayer quiz for others to join.")
-async def quiz_multi(ctx, level: str = "advanced", rounds: int = 5):
-    """Create a multiplayer lobby: !quiz multi [level] [rounds]."""
-    await quiz_game.create_multiplayer(ctx, level.lower(), rounds)
-
-
-@quiz_command.command(name="join", description="Join the multiplayer quiz in this channel.")
-async def quiz_join(ctx):
-    await quiz_game.join(ctx)
-
-
-@quiz_command.command(name="start", description="Start the waiting multiplayer quiz as its host.")
-async def quiz_start(ctx):
-    await quiz_game.start(ctx)
-
-
-@quiz_command.command(name="stop", description="Stop the active quiz in this channel.")
-async def quiz_stop(ctx):
-    await quiz_game.stop(ctx)
-
-
-@quiz_command.command(name="leaderboard", description="Show the quiz points leaderboard.")
-async def quiz_leaderboard(ctx):
-    scores = quiz_game.leaderboard()
-    if not scores:
-        await ctx.send("No quiz scores have been recorded yet.")
-        return
-    lines = [f"**{index}.** <@{user_id}> - {points} points | {wins} wins" for index, (user_id, points, wins) in enumerate(scores, 1)]
-    await ctx.send("\U0001f3c6 **Islamic Quiz leaderboard**\n" + "\n".join(lines))
-
-
-@quiz_command.command(name="help", description="Show the Islamic quiz game guide.")
-async def quiz_help(ctx):
-    """Display the quiz game guide."""
-    total = len(quiz_game.questions)
-    levels = quiz_game.level_counts()
-    embed = discord.Embed(
-        title="\U0001f9e0 Islamic Quiz - Game Guide",
-        description=(
-            f"**{total} source-referenced questions** are currently available - the bank has reached **1,000 questions**. "
-            "Every question has four shuffled answers, a 45-second timer, and the source is shown after the round."
-        ),
-        color=discord.Color.gold(),
-    )
-    embed.add_field(
-        name="\U0001f3af Solo quiz",
-        value=(
-            "`!quiz` - 5 advanced questions\n"
-            "`!quiz intermediate 10` - choose level and rounds\n"
-            "`!answer A` - answer the active question"
-        ),
-        inline=False,
-    )
-    embed.add_field(
-        name="\U0001f3c6 Multiplayer",
-        value=(
-            "`!quiz multi advanced 10` - create a lobby\n"
-            "`!quiz join` - join before it begins\n"
-            "`!quiz start` - host starts the game\n"
-            "First correct answer gets 1 point. Only the host can use `!quiz stop`."
-        ),
-        inline=False,
-    )
-    embed.add_field(
-        name="\U0001f4ca Progress",
-        value=(
-            "`!quiz leaderboard` - top players\n"
-            "`!quiz profile` - your points and wins\n"
-            "`!quiz categories` - available subjects\n"
-            f"Levels: beginner {levels['beginner']} | intermediate {levels['intermediate']} | advanced {levels['advanced']}"
-        ),
-        inline=False,
-    )
-    embed.add_field(
-        name="\U0001f4da Fairness and sources",
-        value=(
-            "Answer letters are shuffled every round. The bot reveals the answer and reference after each question. "
-            "Games rotate through available subjects so one large category does not dominate. "
-            "Questions that represent a specific school or creed should be explicitly labelled."
-        ),
-        inline=False,
-    )
-    embed.set_footer(text="Use !quiz help whenever you need this panel again.")
-    await ctx.send(embed=embed)
-
-
-@quiz_command.command(name="profile", description="Show your or another member's quiz profile.")
-async def quiz_profile(ctx, member: discord.Member | None = None):
-    """Show quiz points and wins for yourself or a server member."""
-    member = member or ctx.author
-    points, wins = quiz_game.player_stats(member.id)
-    await ctx.send(f"\U0001f4c8 **{member.display_name} quiz profile**\nPoints: **{points}** | Quiz wins: **{wins}**")
-
-
-@quiz_command.command(name="categories", description="Show question counts by subject.")
-async def quiz_categories(ctx):
-    """Show question counts by subject."""
-    counts = quiz_game.category_counts()
-    lines = [f"**{category}:** {count}" for category, count in counts.items()]
-    await ctx.send("\U0001f4da **Question categories**\n" + "\n".join(lines))
-
-
-@quiz_command.command(name="reload", description="Admin: reload the quiz question files.")
-@commands.has_guild_permissions(manage_guild=True)
-async def quiz_reload(ctx):
-    count = quiz_game.reload_questions()
-    await ctx.send(f"Reloaded {count} valid quiz questions.")
-
-
-@bot.hybrid_command(name="answer", description="Answer the current quiz question using A, B, C, or D.")
-async def quiz_answer(ctx, choice: str):
-    await quiz_game.answer(ctx, choice)
 
 
 @bot.event
