@@ -42,11 +42,14 @@ autoreact_file = Path(__file__).with_name("autoreact_users.json")
 memory_file = Path(__file__).with_name("bot_memory.sqlite3")
 BOT_REACTION = "\U0001f480"
 OLLAMA_MODEL = "llama3.2:3b"
-# OpenRouter — primary AI provider (free, no Groq needed)
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+# OpenRouter — primary AI provider. Add extra keys (OPENROUTER_API_KEY_2, _3, _4)
+# for automatic rotation when one key hits its daily free quota (429).
+OPENROUTER_API_KEY  = os.environ.get("OPENROUTER_API_KEY", "")
+OPENROUTER_API_KEY_2 = os.environ.get("OPENROUTER_API_KEY_2", "")
+OPENROUTER_API_KEY_3 = os.environ.get("OPENROUTER_API_KEY_3", "")
+OPENROUTER_API_KEY_4 = os.environ.get("OPENROUTER_API_KEY_4", "")
 OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
-# Fallback model list — trimmed to models that actually respond (others return 429/404).
-# Fewer models = faster worst-case: 2 models × 5s timeout = 10s max instead of 25s.
+# Fallback model list — tried in order per key. brain.best_openrouter_order() sorts by success history.
 OPENROUTER_FALLBACK_MODELS = [
     "nvidia/nemotron-3.5-lightning:free",
     "google/gemma-4-31b-it:free",
@@ -135,6 +138,17 @@ class BotBrain:
         # --- Request counters (kept for stats display) ---
         self.openrouter_request_count: int = 0
 
+        # --- OpenRouter key rotation ---
+        # Load all available keys; rotate to next when one hits its 429 daily limit
+        self.openrouter_keys: list = [k for k in [
+            os.environ.get("OPENROUTER_API_KEY", ""),
+            os.environ.get("OPENROUTER_API_KEY_2", ""),
+            os.environ.get("OPENROUTER_API_KEY_3", ""),
+            os.environ.get("OPENROUTER_API_KEY_4", ""),
+        ] if k]
+        self.openrouter_key_index: int = 0
+        self.openrouter_exhausted_keys: set = set()  # keys that returned 429 on ALL models today
+
         # --- OpenRouter model performance tracking ---
         self.openrouter_last_good_model: str = ""  # model that worked last time
         self.openrouter_fail_counts: dict = {}      # {model: consecutive_failures}
@@ -192,6 +206,33 @@ class BotBrain:
 
     def resolve_issue(self, issue_fragment: str):
         self.known_issues = [i for i in self.known_issues if issue_fragment not in i]
+
+    def active_openrouter_key(self) -> str:
+        """Return the current active OpenRouter key, skipping exhausted ones."""
+        live = [k for k in self.openrouter_keys if k not in self.openrouter_exhausted_keys]
+        if not live:
+            return ""  # all keys exhausted for today
+        self.openrouter_key_index = self.openrouter_key_index % len(live)
+        return live[self.openrouter_key_index]
+
+    def mark_openrouter_key_exhausted(self, key: str):
+        """Called when a key gets 429 on every model — rotate to the next key."""
+        self.openrouter_exhausted_keys.add(key)
+        live = [k for k in self.openrouter_keys if k not in self.openrouter_exhausted_keys]
+        if live:
+            self.openrouter_key_index = 0
+            print(f"[Brain] OpenRouter key exhausted — rotating ({len(live)} key(s) remaining)", flush=True)
+            self.resolve_issue("OpenRouter quota")
+        else:
+            print("[Brain] ALL OpenRouter keys exhausted for today — bot cannot reply until quota resets", flush=True)
+            self.add_known_issue("All OpenRouter keys at daily limit — quota resets at midnight UTC")
+
+    def reset_openrouter_keys(self):
+        """Called at midnight UTC to clear exhausted keys for the new day."""
+        self.openrouter_exhausted_keys.clear()
+        self.openrouter_key_index = 0
+        self.resolve_issue("OpenRouter quota")
+        print("[Brain] OpenRouter daily quota reset — all keys re-enabled", flush=True)
 
     def record_fix(self, label: str, patched: bool):
         """Log an autofix attempt so !botstatus can show what was repaired."""
@@ -998,53 +1039,76 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
 async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
     """
     Async AI caller using aiohttp — used for all live reply paths.
-    aiohttp handles SSL/connection pooling much better than urllib on Python 3.14.
+    Rotates through multiple OpenRouter keys when one hits its daily free quota.
     """
     import aiohttp
 
-    if not OPENROUTER_API_KEY:
+    if not brain.openrouter_keys and not OPENROUTER_API_KEY:
         print("[AI] OPENROUTER_API_KEY is not set!", flush=True)
         return None
 
-    headers = {
+    headers_base = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "HTTP-Referer": "https://github.com",
         "X-Title": "AhlulSkullBot",
     }
 
     ordered_models = brain.best_openrouter_order(OPENROUTER_FALLBACK_MODELS)
-    for or_model in ordered_models:
-        payload = {
-            "model": or_model,
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-        }
-        try:
-            print(f"[AI] Trying OpenRouter ({or_model})...", flush=True)
-            timeout = aiohttp.ClientTimeout(total=15)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(OPENROUTER_URL, json=payload, headers=headers) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        result = data["choices"][0]["message"]["content"].strip()
-                        result = _strip_thinking(result)
-                        if result:
-                            brain.record_openrouter_success(or_model)
-                            brain.log_event("openrouter", "reply_ok")
-                            print(f"[AI] OpenRouter success ({or_model})", flush=True)
-                            return result
-                        print(f"[AI] OpenRouter empty after stripping ({or_model}), trying next...", flush=True)
-                    else:
-                        body = await resp.text()
-                        print(f"[AI] OpenRouter HTTP {resp.status} ({or_model}): {body[:120]}", flush=True)
-                        brain.record_openrouter_failure(or_model)
-                        continue
-        except Exception as e:
-            print(f"[AI] OpenRouter exception ({or_model}): {type(e).__name__}: {e}", flush=True)
-            brain.record_openrouter_failure(or_model)
-            continue
+
+    # Try each available key; on full-key 429, rotate to next key
+    keys_to_try = brain.openrouter_keys if brain.openrouter_keys else [OPENROUTER_API_KEY]
+    tried_keys: set = set()
+
+    while True:
+        current_key = brain.active_openrouter_key()
+        if not current_key or current_key in tried_keys:
+            break  # no more live keys
+        tried_keys.add(current_key)
+
+        all_models_429 = True  # track if every model 429'd on this key
+        for or_model in ordered_models:
+            payload = {
+                "model": or_model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            }
+            headers = {**headers_base, "Authorization": f"Bearer {current_key}"}
+            try:
+                print(f"[AI] Trying OpenRouter ({or_model}) key[{brain.openrouter_key_index}]...", flush=True)
+                timeout = aiohttp.ClientTimeout(total=15)
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    async with session.post(OPENROUTER_URL, json=payload, headers=headers) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            result = data["choices"][0]["message"]["content"].strip()
+                            result = _strip_thinking(result)
+                            if result:
+                                brain.record_openrouter_success(or_model)
+                                brain.log_event("openrouter", "reply_ok")
+                                print(f"[AI] OpenRouter success ({or_model})", flush=True)
+                                return result
+                            print(f"[AI] Empty after stripping ({or_model}), trying next...", flush=True)
+                            all_models_429 = False
+                        elif resp.status == 429:
+                            body = await resp.text()
+                            print(f"[AI] OpenRouter 429 ({or_model}): quota hit", flush=True)
+                            brain.record_openrouter_failure(or_model)
+                            # 429 = quota — keep all_models_429 = True, try next model
+                        else:
+                            body = await resp.text()
+                            print(f"[AI] OpenRouter HTTP {resp.status} ({or_model}): {body[:120]}", flush=True)
+                            brain.record_openrouter_failure(or_model)
+                            all_models_429 = False
+            except Exception as e:
+                print(f"[AI] OpenRouter exception ({or_model}): {type(e).__name__}: {e}", flush=True)
+                brain.record_openrouter_failure(or_model)
+                all_models_429 = False
+
+        if all_models_429:
+            # Every model 429'd on this key — rotate to next key
+            brain.mark_openrouter_key_exhausted(current_key)
+            # Loop will try next key
 
     # Ollama local fallback
     if brain.ollama_alive and _ollama_ping():
@@ -2255,6 +2319,15 @@ async def ollama_health_check():
         )
 
 
+@tasks.loop(minutes=60)
+async def openrouter_quota_reset_check():
+    """Every hour check if it's past midnight UTC — if so, re-enable all exhausted keys."""
+    if brain.openrouter_exhausted_keys:
+        now_utc = datetime.now(timezone.utc)
+        if now_utc.hour == 0:  # midnight UTC = OpenRouter quota reset time
+            brain.reset_openrouter_keys()
+
+
 @tasks.loop(minutes=5)
 async def dump_brain_state():
     """Write brain state to a file so autofix.py can read it for smarter fixes."""
@@ -2299,6 +2372,8 @@ async def on_ready():
         deliver_scheduled_messages.start()
     if not ollama_health_check.is_running():
         ollama_health_check.start()
+    if not openrouter_quota_reset_check.is_running():
+        openrouter_quota_reset_check.start()
     if not dump_brain_state.is_running():
         dump_brain_state.start()
     if not slash_commands_synced:
@@ -2360,6 +2435,7 @@ async def botstatus(ctx):
     """Show brain health: AI services, quota, known issues, recent fixes."""
     lines = [
         f"**System status:** {brain.system_status()}",
+        f"**OpenRouter keys:** {len(brain.openrouter_keys)} loaded, {len(brain.openrouter_exhausted_keys)} exhausted today",
         f"**Best OpenRouter model:** {brain.openrouter_last_good_model or 'not determined yet'}",
         f"**Ollama:** {'online' if brain.ollama_alive else 'offline'}",
         f"**ElevenLabs:** {'online' if brain.elevenlabs_alive else 'quota exhausted'}",
