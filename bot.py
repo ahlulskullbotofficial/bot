@@ -140,6 +140,8 @@ class BotBrain:
 
         # --- Alert tracking (don't spam the same alert) ---
         self.alerted: set = set()   # set of alert IDs already sent
+
+    def log_event(self, system: str, event: str, user_id=None):
         entry = {
             "ts": datetime.now(timezone.utc).isoformat(),
             "system": system,
