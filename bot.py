@@ -354,6 +354,9 @@ from that analysis. Never invent a different country, flag, animal, person, or
 object. A possible flag layout is a hint, not a fact, unless the analysis also
 says the image is a flag. If the analysis is missing, failed, or unsure, say
 you cannot tell - do not guess.
+CRITICAL: Output ONLY your actual reply. Never write your reasoning, thought
+process, planning notes, or internal monologue. Do not start with "The user
+said", "I should", "Let me think", or any similar meta-commentary. Just reply.
 """
 
 voice_transcriber = None
@@ -959,18 +962,49 @@ def _strip_thinking(text: str) -> str:
     """Remove chain-of-thought / thinking blocks from AI responses."""
     if not text:
         return text
+
     # Remove <think>...</think> blocks
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.S).strip()
-    # Remove "Here's a thinking process:" style blocks
+
+    # Remove explicit thinking headers and everything until the next real paragraph
     thinking_markers = [
-        r"Here['']s a thinking process:.*?(?=\n\n[A-Z\*]|\Z)",
-        r"Here's my thinking:.*?(?=\n\n[A-Z\*]|\Z)",
-        r"Let me think.*?(?=\n\n[A-Z\*]|\Z)",
-        r"Thinking:.*?(?=\n\n[A-Z\*]|\Z)",
-        r"\*\*Thinking\*\*.*?(?=\n\n[A-Z\*]|\Z)",
+        r"Here['']s a thinking process:.*?(?=\n\n|\Z)",
+        r"Here's my thinking:.*?(?=\n\n|\Z)",
+        r"Let me think.*?(?=\n\n|\Z)",
+        r"Thinking:.*?(?=\n\n|\Z)",
+        r"\*\*Thinking\*\*.*?(?=\n\n|\Z)",
+        r"I need to (think|consider|figure|work).*?(?=\n\n|\Z)",
+        r"The user (said|wants|asked|is asking).*?(?=\n\n|\Z)",
+        r"I should (reply|respond|keep|make|give).*?(?=\n\n|\Z)",
+        r"I'm going to.*?(?=\n\n|\Z)",
+        r"(Okay|OK|Alright|So),?\s+the user.*?(?=\n\n|\Z)",
+        r"Let me (craft|write|come up|think|figure).*?(?=\n\n|\Z)",
+        r"My response should.*?(?=\n\n|\Z)",
+        r"Current context:.*?(?=\n\n|\Z)",
+        r"Playful British roadman.*?(?=\n\n|\Z)",
     ]
     for pattern in thinking_markers:
         text = re.sub(pattern, '', text, flags=re.S | re.I).strip()
+
+    # Last-resort heuristic: if the text still starts with an internal-monologue
+    # sentence (reasoning about what to say rather than saying it), and there are
+    # multiple paragraphs, drop everything before the final paragraph break.
+    # Signs of internal monologue: starts with "I ", "The user", "User said",
+    # "This is a", contains phrases like "I should", "I need to", "I want to".
+    paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+    if len(paragraphs) > 1:
+        first = paragraphs[0].lower()
+        monologue_signals = [
+            'the user', 'user said', 'this is a', 'i should', 'i need to',
+            'i want to', 'i\'m going', 'i will reply', 'i\'ll reply',
+            'i must', 'my response', 'let me', 'i have to', 'i\'m a',
+            'playful', 'british roadman', 'current context', 'i can reply',
+        ]
+        if any(sig in first for sig in monologue_signals):
+            # Drop all leading reasoning paragraphs, keep only the final one
+            # (which is the actual reply)
+            text = paragraphs[-1]
+
     return text.strip()
 
 
