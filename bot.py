@@ -53,10 +53,10 @@ OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
 # Listed from most chat-friendly to least. Reasoning models (nemotron, gemma) are last
 # because they leak thinking blocks even when told not to.
 OPENROUTER_FALLBACK_MODELS = [
-    "inclusionai/ling-3.0-flash:free",   # fast general instruction, non-reasoning
     "openai/gpt-oss-20b:free",            # general + fast, non-reasoning
-    "nvidia/nemotron-3.5-lightning:free", # reasoning model — strip thinking blocks
-    "google/gemma-4-31b-it:free",         # reasoning model — strip thinking blocks
+    "nvidia/nemotron-3.5-lightning:free", # reasoning model — thinking separated via include_reasoning
+    "google/gemma-4-31b-it:free",         # reasoning model — thinking separated via include_reasoning
+    "nvidia/nemotron-3-nano-9b-v2:free",  # lightweight fallback
 ]# Prefer Qwen2.5-VL; fall back to moondream only if nothing else is installed.
 PREFERRED_VISION_MODELS = (
     "qwen2.5vl:3b",
@@ -2412,24 +2412,22 @@ async def on_ready():
     # Validate all keys in background without blocking startup
     async def _validate_openrouter_keys():
         import aiohttp
-        headers_base = {
-            "HTTP-Referer": "https://github.com",
-            "X-Title": "AhlulSkullBot",
-            "Content-Type": "application/json",
-        }
-        payload = {"model": OPENROUTER_FALLBACK_MODELS[0], "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}
         valid = 0
         for i, key in enumerate(brain.openrouter_keys):
             try:
+                # Use the /auth/key endpoint — returns key info without spending quota
                 async with aiohttp.ClientSession() as s:
-                    async with s.post(OPENROUTER_URL, json=payload,
-                                      headers={**headers_base, "Authorization": f"Bearer {key}"},
-                                      timeout=aiohttp.ClientTimeout(total=8)) as r:
-                        if r.status in (200, 429):  # 429 = valid key, just quota hit
-                            status = "✓ valid" if r.status == 200 else "✓ valid (quota hit)"
+                    async with s.get(
+                        "https://openrouter.ai/api/v1/auth/key",
+                        headers={"Authorization": f"Bearer {key}"},
+                        timeout=aiohttp.ClientTimeout(total=8)
+                    ) as r:
+                        if r.status == 200:
+                            data = await r.json()
+                            label = data.get("data", {}).get("label", "unnamed")
+                            status = f"✓ valid ({label})"
                             valid += 1
                         else:
-                            body = await r.text()
                             status = f"✗ invalid (HTTP {r.status})"
                             brain.openrouter_exhausted_keys.add(key)
                             brain.add_known_issue(f"Key {i+1} invalid: HTTP {r.status}")
@@ -2437,6 +2435,8 @@ async def on_ready():
             except Exception as e:
                 print(f"[Keys] Key {i+1}: ✗ unreachable ({type(e).__name__})", flush=True)
         print(f"[Keys] {valid}/{len(brain.openrouter_keys)} key(s) ready", flush=True)
+        if valid == 0:
+            brain.add_known_issue("No valid OpenRouter keys — check OPENROUTER_API_KEY env vars")
     asyncio.ensure_future(_validate_openrouter_keys())
     # Resolve vision model in background so on_ready doesn't block
     async def _resolve_vision_async():
