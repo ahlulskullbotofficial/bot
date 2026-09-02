@@ -12,7 +12,6 @@ import tempfile
 import traceback
 import urllib.error
 import urllib.request
-from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
@@ -54,7 +53,6 @@ GROQ_URL      = "https://api.groq.com/openai/v1/chat/completions"
 # OpenRouter fallback — free alternative if Groq is unavailable
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
-OPENROUTER_MODEL   = "nvidia/nemotron-3.5-lightning:free"
 # Fallback model list — trimmed to models that actually respond (others return 429/404).
 # Fewer models = faster worst-case: 2 models × 5s timeout = 10s max instead of 25s.
 OPENROUTER_FALLBACK_MODELS = [
@@ -82,6 +80,7 @@ ELEVENLABS_MODEL = "eleven_multilingual_v2"
 
 # ElevenLabs monthly quota reset tracking (month number when quota was exhausted)
 _elevenlabs_quota_reset_month = None
+_elevenlabs_quota_exhausted = False  # True when quota is used up for the month
 
 # Emotion triggers used by the voice reply system.
 # Defined once at module level — not recreated on every message.
@@ -132,7 +131,8 @@ class BotBrain:
         # Each entry: {"ts": iso, "system": str, "event": str, "user_id": int|None}
         self.event_log: list = []
 
-        # --- Self-improvement log: tracks what fixes were attempted ---
+        # --- Fix history: rolling log of auto-patches applied ---
+        # Each entry: {"ts": iso, "label": str, "patched": bool}
         self.fix_history: list = []
 
         # --- Pending issues that need resolution ---
@@ -164,8 +164,8 @@ class BotBrain:
         self.search_cache: dict = {}
         self.search_cache_ttl: int = 300  # 5 minutes
 
-        # --- Alert tracking (don't spam the same alert) ---
-        self.alerted: set = set()   # set of alert IDs already sent
+        # --- Alert tracking ---
+        self.alerted: set = set()   # set of alert IDs already sent (prevents repeat DMs)
 
     def log_event(self, system: str, event: str, user_id=None):
         entry = {
@@ -228,6 +228,19 @@ class BotBrain:
     def resolve_issue(self, issue_fragment: str):
         self.known_issues = [i for i in self.known_issues if issue_fragment not in i]
 
+    def record_fix(self, label: str, patched: bool):
+        """Log an autofix attempt so !botstatus can show what was repaired."""
+        entry = {
+            "ts": datetime.now(timezone.utc).strftime("%H:%M UTC"),
+            "label": label,
+            "patched": patched,
+        }
+        self.fix_history.append(entry)
+        if len(self.fix_history) > 20:
+            self.fix_history.pop(0)
+        if patched:
+            self.resolve_issue(label)
+
     def active_groq_key(self) -> str:
         """Return the currently active Groq key, skipping dead ones."""
         if not self.groq_keys:
@@ -252,13 +265,6 @@ class BotBrain:
             print("[Brain] ALL Groq keys are dead — no AI available")
             self.groq_alive = False
             self.add_known_issue("All Groq keys expired — update GROQ_API_KEY in env vars")
-
-    def should_alert(self, alert_id: str) -> bool:
-        """Return True if this alert hasn't been sent yet (prevents spam)."""
-        if alert_id in self.alerted:
-            return False
-        self.alerted.add(alert_id)
-        return True
 
     def get_cached_search(self, query: str):
         """Return cached search result if fresh, else None."""
@@ -902,17 +908,17 @@ def send_from_console():
 
 def _web_search(query: str, max_results: int = 3) -> str:
     """
-    Search DuckDuckGo Instant Answer API — free, no key needed.
-    Returns a compact summary string to inject into the AI context.
-    Fast timeout (2s) so it never significantly delays replies.
+    Search DuckDuckGo — tries Instant Answer API first (fast, Wikipedia-style),
+    then falls back to scraping DuckDuckGo HTML results for real-time queries.
+    2s timeout total so it never significantly delays replies.
     """
+    # --- Attempt 1: DuckDuckGo Instant Answer API ---
     try:
         encoded = urllib.request.quote(query[:200])
         url = f"https://api.duckduckgo.com/?q={encoded}&format=json&no_html=1&skip_disambig=1"
         req = urllib.request.Request(url, headers={"User-Agent": "AhlulSkullBot/1.0"})
         with urllib.request.urlopen(req, timeout=2) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-
         parts = []
         if data.get("AbstractText"):
             parts.append(data["AbstractText"][:300])
@@ -922,7 +928,31 @@ def _web_search(query: str, max_results: int = 3) -> str:
         if parts:
             return "\n".join(parts)
     except Exception:
-        pass  # silent fail — don't slow down replies
+        pass
+
+    # --- Attempt 2: DuckDuckGo HTML search (better for news/current events) ---
+    try:
+        encoded = urllib.request.quote(query[:200])
+        url = f"https://html.duckduckgo.com/html/?q={encoded}"
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (compatible; AhlulSkullBot/1.1)",
+                "Accept": "text/html",
+            }
+        )
+        with urllib.request.urlopen(req, timeout=2) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+        # Extract result snippets — each result is in a <a class="result__snippet"> tag
+        snippets = re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', html, re.S)
+        # Strip HTML tags from snippets
+        clean = [re.sub(r"<[^>]+>", "", s).strip() for s in snippets[:max_results]]
+        clean = [c for c in clean if len(c) > 20]
+        if clean:
+            return "\n".join(clean[:max_results])
+    except Exception:
+        pass
+
     return ""
 
 
@@ -1094,6 +1124,16 @@ def make_ai_reply(history, user_message, member_context, visual=False, user_id=N
         style_hint = brain.get_user_reply_style(user_id)
         if style_hint:
             system_parts.append(f"[User style: {style_hint}. Adapt your reply accordingly.]")
+
+    # Inject conversation depth so the AI knows how long you've been talking
+    if user_id:
+        user_state = brain.get_user_state(user_id)
+        count = user_state.get("message_count", 0)
+        topic = user_state.get("topic", "")
+        if count > 0:
+            depth_hint = "new conversation" if count < 5 else f"ongoing chat ({count} messages)"
+            topic_hint = f", topic: {topic}" if topic else ""
+            system_parts.append(f"[Conversation context: {depth_hint}{topic_hint}. Don't re-introduce yourself if already in chat.]")
 
     # Auto-search: inject live web results when the question needs current data
     if _needs_search(user_message) and not visual:
@@ -1941,30 +1981,35 @@ async def answer_with_ai(message):
     brain.update_user_state(message.author.id, pending_voice=False, mood=detected_mood)
     brain.update_message_stats(message.author.id, len(stripped_content))
     brain.log_event("reply", "incoming", user_id=message.author.id)
+    # Update topic based on message content (keyword extraction)
+    if len(stripped_content) > 15:
+        topic_keywords = re.findall(r'\b([A-Z][a-z]{3,}|quran|hadith|islam|prayer|salah|dua|fiqh)\b', stripped_content)
+        if topic_keywords:
+            brain.update_user_state(message.author.id, topic=topic_keywords[0].lower())
 
     action, value = parse_control(stripped_content)
     if action == "mute":
-        set_ai_enabled(message.author.id, False)
+        await asyncio.to_thread(set_ai_enabled, message.author.id, False)
         await message.reply("Say less - I won't reply to you again unless you ask me to resume.")
         print(f"[Reply sent] Text to {message.author.display_name}")
         return
     if action == "unmute":
-        set_ai_enabled(message.author.id, True)
+        await asyncio.to_thread(set_ai_enabled, message.author.id, True)
         await message.reply("You're back on the list. What's good?")
         print(f"[Reply sent] Text to {message.author.display_name}")
         return
     if action == "forget":
-        forget_user(message.author.id)
+        await asyncio.to_thread(forget_user, message.author.id)
         await message.reply("Your saved conversation memory has been cleared.")
         print(f"[Reply sent] Text to {message.author.display_name}")
         return
     if action == "schedule":
         content, seconds = value
-        due = schedule_message(message.author.id, message.channel.id, content, seconds)
+        due = await asyncio.to_thread(schedule_message, message.author.id, message.channel.id, content, seconds)
         await message.reply(f"Calm. I'll send that here at {due.strftime('%H:%M UTC')}.")
         print(f"[Reply sent] Text to {message.author.display_name}")
         return
-    if not ai_enabled_for(message.author.id):
+    if not await asyncio.to_thread(ai_enabled_for, message.author.id):
         print(f"[Reply sent] Skipped (AI disabled) for {message.author.display_name}")
         return
 
@@ -2100,16 +2145,16 @@ async def _answer_with_ai_inner(message, stripped_content):
                 make_ai_reply, history, ai_user_message, member_context, bool(image_description), message.author.id
             )
         reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
-        # Validate reply — only regenerate for clear system errors, not style issues
+        # Validate reply — regenerate on system errors, empty replies, and image errors
         sane, reason = _is_reply_sane(user_message, reply)
-        if not sane and "system_error_leaked" in reason:
+        if not sane:
             safe_prompt = user_message + "\n\n[Reply naturally. Do not mention images, vision, Ollama, or system errors.]"
             try:
                 async with message.channel.typing():
                     regen = await asyncio.to_thread(
                         make_ai_reply, history, safe_prompt, member_context, False, message.author.id
                     )
-                if regen:
+                if regen and regen.strip():
                     reply = regen[:1900]
             except Exception:
                 pass
@@ -2129,8 +2174,8 @@ async def _answer_with_ai_inner(message, stripped_content):
             print(f"[Reply sent] Fallback to {message.author.display_name}")
             return
     reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
-    remember(message.author.id, message.channel.id, "user", user_message)
-    remember(message.author.id, message.channel.id, "assistant", reply)
+    await asyncio.to_thread(remember, message.author.id, message.channel.id, "user", user_message)
+    await asyncio.to_thread(remember, message.author.id, message.channel.id, "assistant", reply)
     asyncio.get_running_loop().run_in_executor(
         None, summarize_old_turns, message.author.id, message.channel.id
     )
@@ -2161,8 +2206,15 @@ async def _answer_with_ai_inner(message, stripped_content):
 @tasks.loop(seconds=30)
 async def deliver_scheduled_messages():
     now = datetime.now(timezone.utc).isoformat()
-    with _db() as database:
-        due = database.execute("SELECT id, channel_id, content FROM scheduled_messages WHERE delivered = 0 AND run_at <= ?", (now,)).fetchall()
+
+    def _fetch_due():
+        with _db() as database:
+            return database.execute(
+                "SELECT id, channel_id, content FROM scheduled_messages WHERE delivered = 0 AND run_at <= ?",
+                (now,)
+            ).fetchall()
+
+    due = await asyncio.to_thread(_fetch_due)
     for message_id, channel_id, content in due:
         try:
             channel = bot.get_channel(channel_id) or await bot.fetch_channel(channel_id)
@@ -2288,6 +2340,7 @@ async def ollama_health_check():
 async def dump_brain_state():
     """Write brain state to a file so autofix.py can read it for smarter fixes."""
     try:
+        fix_lines = [f"  [{f['ts']}] {f['label']} → {'PATCHED' if f['patched'] else 'FAILED'}" for f in brain.fix_history[-5:]]
         state_lines = [
             f"System: {brain.system_status()}",
             f"Groq key dead: {brain.groq_key_dead}",
@@ -2295,6 +2348,7 @@ async def dump_brain_state():
             f"Best OpenRouter model: {brain.openrouter_last_good_model}",
             f"Known issues: {'; '.join(brain.known_issues[-5:]) if brain.known_issues else 'none'}",
             f"Recent events: {', '.join(e['event'] for e in brain.event_log[-10:])}",
+            f"Recent fixes: {chr(10).join(fix_lines) if fix_lines else 'none'}",
         ]
         Path(__file__).with_name("brain_state.txt").write_text("\n".join(state_lines), encoding="utf-8")
     except Exception:
@@ -2344,9 +2398,18 @@ async def groq_health_check():
                 "2. Go to bot-hosting.net -> your deployment -> Env tab\n"
                 "3. Update `GROQ_API_KEY` with the new key\n"
                 "4. Restart the deployment\n\n"
-                "Bot cannot reply to anyone until this is fixed."
+                "Bot is using OpenRouter as fallback — replies may be slower."
             )
+            brain.add_known_issue(f"Groq key invalid (HTTP {e.code})")
             print(f"[GROQ ALERT] Key invalid (HTTP {e.code}) — update GROQ_API_KEY or use OpenRouter")
+            # DM the owner if BOT_OWNER_ID is set
+            if BOT_OWNER_ID:
+                try:
+                    owner = await bot.fetch_user(BOT_OWNER_ID)
+                    await owner.send(msg)
+                    print(f"[GROQ ALERT] DM sent to owner {BOT_OWNER_ID}")
+                except Exception as dm_err:
+                    print(f"[GROQ ALERT] Could not DM owner: {dm_err}")
             # Stop the health check permanently until bot restarts
             groq_health_check.stop()
     except Exception:
@@ -2439,7 +2502,7 @@ async def aistatus(ctx):
 
 @bot.hybrid_command(description="Show the bot's system status and health.")
 async def botstatus(ctx):
-    """Show brain health: AI services, quota, known issues."""
+    """Show brain health: AI services, quota, known issues, recent fixes."""
     lines = [
         f"**System status:** {brain.system_status()}",
         f"**Groq requests today:** {brain.groq_requests_today}",
@@ -2451,6 +2514,12 @@ async def botstatus(ctx):
     ]
     if brain.known_issues:
         lines.append(f"**Known issues:** {', '.join(brain.known_issues[-5:])}")
+    if brain.fix_history:
+        fix_summary = ", ".join(
+            f"{f['label']}({'✓' if f['patched'] else '✗'}) @{f['ts']}"
+            for f in brain.fix_history[-3:]
+        )
+        lines.append(f"**Recent auto-fixes:** {fix_summary}")
     await ctx.send("\n".join(lines))
 
 

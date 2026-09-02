@@ -572,6 +572,17 @@ def run():
                 fix_attempts += 1
                 last_backup = list(sorted(BACKUP_DIR.glob("bot_*.py")))[-1] if BACKUP_DIR.exists() else None
                 log("[AutoFix] Patch applied — restarting bot with fix...")
+                # Write a record into brain_state.txt so the bot can read it on next start
+                try:
+                    brain_file = BOT_FILE.parent / "brain_state.txt"
+                    existing = brain_file.read_text(encoding="utf-8") if brain_file.exists() else ""
+                    ts = datetime.now().strftime("%H:%M UTC")
+                    brain_file.write_text(
+                        existing.rstrip() + f"\nAutofix applied: [{ts}] {label} → PATCHED\n",
+                        encoding="utf-8"
+                    )
+                except Exception:
+                    pass
             else:
                 fix_attempts += 1
                 log(f"[AutoFix] Patch failed — will retry or roll back next cycle (attempt {fix_attempts}/{MAX_FIX_ATTEMPTS}).")
