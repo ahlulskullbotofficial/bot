@@ -959,7 +959,7 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
             },
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=8) as response:
+        with urllib.request.urlopen(req, timeout=5) as response:
             result = json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"].strip()
             result = _strip_thinking(result)
             brain.groq_alive = True
@@ -2093,41 +2093,34 @@ async def _answer_with_ai_inner(message, stripped_content):
             reply = await asyncio.to_thread(
                 make_ai_reply, history, ai_user_message, member_context, bool(image_description), message.author.id
             )
-        # Validate reply before sending — catch silent wrong behaviour
         reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
+        # Validate reply — only regenerate for clear system errors, not style issues
         sane, reason = _is_reply_sane(user_message, reply)
-        if not sane:
-            print(f"[Validator] Bad reply detected ({reason}) — regenerating...")
-            brain.log_event("validator", f"bad_{reason}", user_id=message.author.id)
-            brain.add_known_issue(f"Bad reply: {reason}")
-            safe_prompt = user_message + "\n\n[Reply naturally. Do not mention images, vision, Ollama, or system errors unless the user actually asked about them.]"
+        if not sane and "system_error_leaked" in reason:
+            safe_prompt = user_message + "\n\n[Reply naturally. Do not mention images, vision, Ollama, or system errors.]"
             try:
                 async with message.channel.typing():
-                    reply = await asyncio.to_thread(
+                    regen = await asyncio.to_thread(
                         make_ai_reply, history, safe_prompt, member_context, False, message.author.id
                     )
-                reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
+                if regen:
+                    reply = regen[:1900]
             except Exception:
                 pass
     except Exception as error:
         print(f"[AI] Request failed: {type(error).__name__}: {error}")
-        traceback.print_exc()
         brain.log_event("ai", f"reply_failed_{type(error).__name__}", user_id=message.author.id)
-        # Groq key invalid — fall through silently, OpenRouter/Ollama will handle it
-        if "GROQ_KEY_INVALID" in str(error):
-            print("[AI] Groq key invalid — retrying with fallback provider...")
-            # Don't send error message to user — just retry silently
         brain.add_known_issue(f"AI reply failed: {type(error).__name__}")
-        if not _ollama_was_down:
-            asyncio.get_running_loop().run_in_executor(None, _try_start_ollama)
+        # Quick retry with no sleep
         try:
-            await asyncio.sleep(3)
             async with message.channel.typing():
                 reply = await asyncio.to_thread(
                     make_ai_reply, history, ai_user_message, member_context, bool(image_description), message.author.id
                 )
+            reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
         except Exception:
-            await message.reply("Bear with me, my brain's loading... try again in a sec.", mention_author=False)
+            await message.reply("Try again in a sec.", mention_author=False)
+            print(f"[Reply sent] Fallback to {message.author.display_name}")
             return
     reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
     remember(message.author.id, message.channel.id, "user", user_message)
