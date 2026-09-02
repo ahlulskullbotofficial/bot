@@ -42,15 +42,7 @@ autoreact_file = Path(__file__).with_name("autoreact_users.json")
 memory_file = Path(__file__).with_name("bot_memory.sqlite3")
 BOT_REACTION = "\U0001f480"
 OLLAMA_MODEL = "llama3.2:3b"
-# Groq — loaded from .env. When set, all AI text replies use Groq instead of
-# Ollama so the bot can run 24/7 on a server without a local GPU.
-# You can add GROQ_API_KEY_2, GROQ_API_KEY_3 etc. for automatic rotation.
-GROQ_API_KEY  = os.environ.get("GROQ_API_KEY", "")
-GROQ_API_KEY_2 = os.environ.get("GROQ_API_KEY_2", "")
-GROQ_API_KEY_3 = os.environ.get("GROQ_API_KEY_3", "")
-GROQ_MODEL    = "llama-3.3-70b-versatile"
-GROQ_URL      = "https://api.groq.com/openai/v1/chat/completions"
-# OpenRouter fallback — free alternative if Groq is unavailable
+# OpenRouter — primary AI provider (free, no Groq needed)
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
 # Fallback model list — trimmed to models that actually respond (others return 429/404).
@@ -119,8 +111,7 @@ class BotBrain:
     def __init__(self):
         # --- Service health ---
         # Default ollama_alive to False if we have cloud AI keys (likely running on server)
-        self.ollama_alive      = not bool(os.environ.get("GROQ_API_KEY") or os.environ.get("OPENROUTER_API_KEY"))
-        self.groq_alive        = True   # set by _call_ai on error
+        self.ollama_alive      = not bool(os.environ.get("OPENROUTER_API_KEY"))
         self.elevenlabs_alive  = True   # set by TTS on quota error
 
         # --- Active conversation state per user ---
@@ -141,19 +132,8 @@ class BotBrain:
         # --- Vision model cache ---
         self.vision_model: str = ""  # set once Ollama is available
 
-        # --- Groq key rotation ---
-        self.groq_keys: list = [k for k in [
-            os.environ.get("GROQ_API_KEY", ""),
-            os.environ.get("GROQ_API_KEY_2", ""),
-            os.environ.get("GROQ_API_KEY_3", ""),
-        ] if k]
-        self.groq_key_index: int = 0
-        self.groq_dead_keys: set = set()
-        self.groq_key_dead: bool = False  # True when current key is invalid
-
-        # --- Request counters ---
-        self.groq_requests_today: int = 0
-        self.groq_request_date: str = ""
+        # --- Request counters (kept for stats display) ---
+        self.openrouter_request_count: int = 0
 
         # --- OpenRouter model performance tracking ---
         self.openrouter_last_good_model: str = ""  # model that worked last time
@@ -195,28 +175,13 @@ class BotBrain:
         state["last_seen"] = datetime.now(timezone.utc)
         state["message_count"] = state.get("message_count", 0) + 1
 
-    def track_groq_request(self):
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        if self.groq_request_date != today:
-            self.groq_requests_today = 0
-            self.groq_request_date = today
-        self.groq_requests_today += 1
-
-    def groq_quota_warning(self) -> bool:
-        """Return True if approaching Groq daily limit."""
-        return self.groq_requests_today > 12000
-
     def system_status(self) -> str:
         """Human-readable status string injected into AI context."""
         parts = []
         if not self.ollama_alive:
-            parts.append("Ollama offline (using Groq for all AI)")
-        if not self.groq_alive:
-            parts.append("Groq unavailable (using local Ollama)")
+            parts.append("Ollama offline (using OpenRouter for all AI)")
         if not self.elevenlabs_alive:
             parts.append("ElevenLabs quota exhausted (using edge-tts)")
-        if self.groq_quota_warning():
-            parts.append(f"Groq near daily limit ({self.groq_requests_today} requests today)")
         return "; ".join(parts) if parts else "All systems nominal"
 
     def add_known_issue(self, issue: str):
@@ -240,31 +205,6 @@ class BotBrain:
             self.fix_history.pop(0)
         if patched:
             self.resolve_issue(label)
-
-    def active_groq_key(self) -> str:
-        """Return the currently active Groq key, skipping dead ones."""
-        if not self.groq_keys:
-            return GROQ_API_KEY  # fallback to global
-        live = [k for k in self.groq_keys if k not in self.groq_dead_keys]
-        if not live:
-            return ""  # all keys dead
-        # Use round-robin index mod live list
-        self.groq_key_index = self.groq_key_index % len(live)
-        return live[self.groq_key_index]
-
-    def mark_groq_key_dead(self, key: str):
-        """Mark a key as invalid (401/403) and rotate to the next one."""
-        self.groq_dead_keys.add(key)
-        live = [k for k in self.groq_keys if k not in self.groq_dead_keys]
-        if live:
-            self.groq_key_index = 0
-            print(f"[Brain] Groq key rotated — {len(live)} key(s) remaining")
-            self.groq_alive = True
-            self.resolve_issue("Groq")
-        else:
-            print("[Brain] ALL Groq keys are dead — no AI available")
-            self.groq_alive = False
-            self.add_known_issue("All Groq keys expired — update GROQ_API_KEY in env vars")
 
     def get_cached_search(self, query: str):
         """Return cached search result if fresh, else None."""
@@ -995,10 +935,10 @@ def _strip_thinking(text: str) -> str:
 
 def _call_ai(messages, max_tokens=160, temperature=0.8):
     """
-    Unified AI caller. Priority: Groq → OpenRouter → Ollama.
-    Falls back automatically if any provider fails.
+    Unified AI caller. Priority: OpenRouter → Ollama.
+    Groq removed — account blocked. OpenRouter is the primary provider.
     """
-    def _try_openai_compatible(url, key, model, label):
+    def _try_openrouter(model):
         payload = json.dumps({
             "model": model,
             "messages": messages,
@@ -1006,10 +946,10 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
             "temperature": temperature,
         }).encode("utf-8")
         req = urllib.request.Request(
-            url, data=payload,
+            OPENROUTER_URL, data=payload,
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {key}",
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                 "HTTP-Referer": "https://github.com",
                 "X-Title": "AhlulSkullBot",
             },
@@ -1017,52 +957,18 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
         )
         with urllib.request.urlopen(req, timeout=5) as response:
             result = json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"].strip()
-            result = _strip_thinking(result)
-            brain.groq_alive = True
-            brain.log_event(label, "reply_ok")
-            return result
+            return _strip_thinking(result)
 
-    # 1. Try Groq (skip immediately if key is known dead)
-    # Use brain's key rotation to try all available Groq keys
-    groq_key_to_use = brain.active_groq_key() if not brain.groq_key_dead else ""
-    if groq_key_to_use:
-        try:
-            result = _try_openai_compatible(GROQ_URL, groq_key_to_use, GROQ_MODEL, "groq")
-            result = _strip_thinking(result)
-            brain.groq_key_dead = False
-            brain.track_groq_request()
-            return result
-        except urllib.error.HTTPError as e:
-            body = ""
-            try:
-                body = e.read().decode("utf-8", errors="ignore")[:200]
-            except Exception:
-                pass
-            print(f"[AI] Groq error {e.code}: {body}")
-            brain.groq_alive = False
-            if e.code in (401, 403):
-                brain.groq_key_dead = True
-                brain.mark_groq_key_dead(groq_key_to_use)
-                brain.add_known_issue(f"GROQ KEY INVALID (HTTP {e.code})")
-                print(f"[AI] Groq key invalid — trying OpenRouter")
-            else:
-                brain.add_known_issue(f"Groq HTTP {e.code}")
-        except Exception as e:
-            print(f"[AI] Groq failed ({type(e).__name__}: {e})")
-            brain.groq_alive = False
-
-    # 2. Try OpenRouter — use brain's smart ordering (last-good model first)
+    # 1. Try OpenRouter — use brain's smart ordering (last-good model first)
     if OPENROUTER_API_KEY:
         ordered_models = brain.best_openrouter_order(OPENROUTER_FALLBACK_MODELS)
         for or_model in ordered_models:
             try:
                 print(f"[AI] Trying OpenRouter ({or_model})...")
-                result = _try_openai_compatible(OPENROUTER_URL, OPENROUTER_API_KEY, or_model, "openrouter")
-                # Strip thinking/reasoning blocks before returning
-                result = _strip_thinking(result)
+                result = _try_openrouter(or_model)
                 if result:
-                    brain.resolve_issue("GROQ KEY")
                     brain.record_openrouter_success(or_model)
+                    brain.log_event("openrouter", "reply_ok")
                     print(f"[AI] OpenRouter success ({or_model})")
                     return result
                 print(f"[AI] OpenRouter returned empty after stripping ({or_model}), trying next...")
@@ -1072,19 +978,20 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
                     body = e.read().decode("utf-8", errors="ignore")[:200]
                 except Exception:
                     pass
-                print(f"[AI] OpenRouter HTTP error {e.code} ({or_model}): {body[:80]}")
+                print(f"[AI] OpenRouter HTTP {e.code} ({or_model}): {body[:80]}")
+                brain.record_openrouter_failure(or_model)
                 if e.code == 429:
-                    continue  # rate limited, try next model
-                break  # other errors, stop trying
+                    continue  # rate limited — try next model
+                break         # hard error — stop trying
             except Exception as e:
                 print(f"[AI] OpenRouter failed ({or_model}): {type(e).__name__}: {e}")
                 brain.record_openrouter_failure(or_model)
                 continue
 
-    # 3. Try Ollama
+    # 2. Ollama local fallback (only useful when running locally)
     if not _ollama_ping():
-        print("[AI] All providers unavailable — Groq blocked, OpenRouter failed, Ollama unreachable")
-        return None  # caller handles None gracefully
+        print("[AI] All providers unavailable — OpenRouter failed, Ollama unreachable")
+        return None
     payload = json.dumps({
         "model": OLLAMA_MODEL,
         "messages": messages,
@@ -1100,7 +1007,7 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
             return json.loads(response.read().decode("utf-8"))["message"]["content"].strip()
     except urllib.error.URLError:
         print("[AI] Ollama URLError")
-        return None  # caller handles None gracefully
+        return None
 
 
 def make_ai_reply(history, user_message, member_context, visual=False, user_id=None):
@@ -1179,8 +1086,8 @@ def list_ollama_models(silent=False):
 
 
 def resolve_vision_model():
-    # Silence Ollama warnings when running on a Groq-only server
-    silent = bool(GROQ_API_KEY) and not brain.ollama_alive
+    # Silence Ollama warnings when running on a server with cloud AI
+    silent = bool(OPENROUTER_API_KEY) and not brain.ollama_alive
     installed = list_ollama_models(silent=silent)
     names = set(installed)
     for candidate in PREFERRED_VISION_MODELS:
@@ -1417,8 +1324,8 @@ def is_voice_attachment(attachment):
 
 def transcribe_voice(audio_bytes, filename):
     """
-    Transcribe audio. Uses Groq Whisper API if available (works on any server),
-    falls back to local faster-whisper if installed, otherwise raises RuntimeError.
+    Transcribe audio using local faster-whisper.
+    Groq Whisper removed — use local model only.
     """
     _MIME_TYPES = {
         ".ogg": "audio/ogg", ".opus": "audio/opus", ".mp3": "audio/mpeg",
@@ -1426,37 +1333,7 @@ def transcribe_voice(audio_bytes, filename):
         ".flac": "audio/flac",
     }
     suffix = Path(filename or "voice.ogg").suffix.lower() or ".ogg"
-    mime_type = _MIME_TYPES.get(suffix, "audio/ogg")
 
-    if GROQ_API_KEY:
-        try:
-            boundary = "----FormBoundary7MA4YWxkTrZu0gW"
-            # Build multipart directly from bytes — no temp file needed
-            body = (
-                f"--{boundary}\r\n"
-                f"Content-Disposition: form-data; name=\"file\"; filename=\"audio{suffix}\"\r\n"
-                f"Content-Type: {mime_type}\r\n\r\n"
-            ).encode() + audio_bytes + (
-                f"\r\n--{boundary}\r\n"
-                f"Content-Disposition: form-data; name=\"model\"\r\n\r\n"
-                f"whisper-large-v3-turbo\r\n"
-                f"--{boundary}--\r\n"
-            ).encode()
-            req = urllib.request.Request(
-                "https://api.groq.com/openai/v1/audio/transcriptions",
-                data=body,
-                headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
-                    "Content-Type": f"multipart/form-data; boundary={boundary}",
-                },
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                return json.loads(resp.read().decode("utf-8")).get("text", "").strip()
-        except Exception as e:
-            print(f"[Voice] Groq transcription failed: {e} — trying local fallback")
-
-    # Local faster-whisper fallback
     global voice_transcriber
     try:
         from faster_whisper import WhisperModel
@@ -1489,7 +1366,7 @@ async def answer_voice_message(message):
         transcript = await asyncio.to_thread(transcribe_voice, audio_bytes, attachment.filename)
     except RuntimeError:
         await message.reply(
-            "I can't transcribe voice messages right now — Groq key missing and faster-whisper not installed.",
+            "I can't transcribe voice messages right now — faster-whisper is not installed on this server.",
             mention_author=False,
         )
         print(f"[Reply sent] Text to {message.author.display_name}")
@@ -2343,8 +2220,6 @@ async def dump_brain_state():
         fix_lines = [f"  [{f['ts']}] {f['label']} → {'PATCHED' if f['patched'] else 'FAILED'}" for f in brain.fix_history[-5:]]
         state_lines = [
             f"System: {brain.system_status()}",
-            f"Groq key dead: {brain.groq_key_dead}",
-            f"Groq requests today: {brain.groq_requests_today}",
             f"Best OpenRouter model: {brain.openrouter_last_good_model}",
             f"Known issues: {'; '.join(brain.known_issues[-5:]) if brain.known_issues else 'none'}",
             f"Recent events: {', '.join(e['event'] for e in brain.event_log[-10:])}",
@@ -2362,73 +2237,12 @@ async def ollama_health_check_error(error):
 # Get your ID: enable Developer Mode in Discord → right-click your name → Copy ID
 BOT_OWNER_ID = int(os.environ.get("BOT_OWNER_ID", "0"))
 
-
-@tasks.loop(minutes=10)
-async def groq_health_check():
-    """Every 10 minutes verify Groq is reachable. DM the owner if the key dies."""
-    if not GROQ_API_KEY or brain.groq_key_dead:
-        return
-    try:
-        payload = json.dumps({
-            "model": GROQ_MODEL,
-            "messages": [{"role": "user", "content": "hi"}],
-            "max_tokens": 1,
-            "temperature": 0.0,
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            GROQ_URL, data=payload,
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {GROQ_API_KEY}"},
-            method="POST",
-        )
-        await asyncio.to_thread(lambda: urllib.request.urlopen(req, timeout=10).read())
-        if not brain.groq_alive:
-            print("[Groq] Back online.")
-            brain.groq_alive = True
-            brain.groq_key_dead = False
-            brain.resolve_issue("Groq")
-    except urllib.error.HTTPError as e:
-        if e.code in (401, 403):
-            brain.groq_alive = False
-            brain.groq_key_dead = True
-            msg = (
-                "**[BOT ALERT] Groq API key is INVALID**\n"
-                f"Error: HTTP {e.code}\n\n"
-                "**To fix:**\n"
-                "1. Go to <https://console.groq.com> -> API Keys -> Create new key\n"
-                "2. Go to bot-hosting.net -> your deployment -> Env tab\n"
-                "3. Update `GROQ_API_KEY` with the new key\n"
-                "4. Restart the deployment\n\n"
-                "Bot is using OpenRouter as fallback — replies may be slower."
-            )
-            brain.add_known_issue(f"Groq key invalid (HTTP {e.code})")
-            print(f"[GROQ ALERT] Key invalid (HTTP {e.code}) — update GROQ_API_KEY or use OpenRouter")
-            # DM the owner once per bot session (alerted set prevents spam)
-            if BOT_OWNER_ID and "groq_key_dead" not in brain.alerted:
-                brain.alerted.add("groq_key_dead")
-                try:
-                    owner = await bot.fetch_user(BOT_OWNER_ID)
-                    await owner.send(msg)
-                    print(f"[GROQ ALERT] DM sent to owner {BOT_OWNER_ID}")
-                except Exception as dm_err:
-                    print(f"[GROQ ALERT] Could not DM owner: {dm_err}")
-            # Stop the health check permanently until bot restarts
-            groq_health_check.stop()
-    except Exception:
-        pass
-
-
-@groq_health_check.error
-async def groq_health_check_error(error):
-    print(f"[Groq health] Task error: {error}")
-
-
 @bot.event
 async def on_ready():
     global bot_loop, console_started, slash_commands_synced, OLLAMA_VISION_MODEL
     bot_loop = asyncio.get_running_loop()
-    key_status = f"GROQ key: {'set (' + GROQ_API_KEY[:8] + '...)' if GROQ_API_KEY else 'NOT SET'}"
     or_status = f"OpenRouter: {'set (' + OPENROUTER_API_KEY[:12] + '...)' if OPENROUTER_API_KEY else 'NOT SET'}"
-    print(f"Bot v2.1 online as {bot.user} | {key_status} | {or_status}")
+    print(f"Bot v2.1 online as {bot.user} | {or_status}")
     # Resolve vision model in background so on_ready doesn't block
     async def _resolve_vision_async():
         global OLLAMA_VISION_MODEL
@@ -2443,8 +2257,6 @@ async def on_ready():
         deliver_scheduled_messages.start()
     if not ollama_health_check.is_running():
         ollama_health_check.start()
-    if not groq_health_check.is_running():
-        groq_health_check.start()
     if not dump_brain_state.is_running():
         dump_brain_state.start()
     if not slash_commands_synced:
@@ -2506,10 +2318,8 @@ async def botstatus(ctx):
     """Show brain health: AI services, quota, known issues, recent fixes."""
     lines = [
         f"**System status:** {brain.system_status()}",
-        f"**Groq requests today:** {brain.groq_requests_today}",
         f"**Best OpenRouter model:** {brain.openrouter_last_good_model or 'not determined yet'}",
         f"**Ollama:** {'online' if brain.ollama_alive else 'offline'}",
-        f"**Groq:** {'online' if brain.groq_alive else 'offline/blocked'}",
         f"**ElevenLabs:** {'online' if brain.elevenlabs_alive else 'quota exhausted'}",
         f"**Search cache entries:** {len(brain.search_cache)}",
     ]
