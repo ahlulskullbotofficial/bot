@@ -980,7 +980,7 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
     For the main reply path use _call_ai_async instead.
     OpenRouter only — Groq removed, Ollama local fallback.
     """
-    def _try_openrouter(model):
+    def _try_openrouter_with_key(model, key):
         payload = json.dumps({
             "model": model,
             "messages": messages,
@@ -991,7 +991,7 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
             OPENROUTER_URL, data=payload,
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Authorization": f"Bearer {key}",
                 "HTTP-Referer": "https://github.com",
                 "X-Title": "AhlulSkullBot",
             },
@@ -1005,9 +1005,10 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
         print("[AI] OPENROUTER_API_KEY is not set — cannot call OpenRouter", flush=True)
     else:
         ordered_models = brain.best_openrouter_order(OPENROUTER_FALLBACK_MODELS)
+        active_key = brain.active_openrouter_key() or OPENROUTER_API_KEY
         for or_model in ordered_models:
             try:
-                result = _try_openrouter(or_model)
+                result = _try_openrouter_with_key(or_model, active_key)
                 if result:
                     brain.record_openrouter_success(or_model)
                     return result
@@ -1056,7 +1057,6 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
     ordered_models = brain.best_openrouter_order(OPENROUTER_FALLBACK_MODELS)
 
     # Try each available key; on full-key 429, rotate to next key
-    keys_to_try = brain.openrouter_keys if brain.openrouter_keys else [OPENROUTER_API_KEY]
     tried_keys: set = set()
 
     while True:
@@ -2358,6 +2358,36 @@ async def on_ready():
     bot_loop = asyncio.get_running_loop()
     or_status = f"OpenRouter: {'set (' + OPENROUTER_API_KEY[:12] + '...)' if OPENROUTER_API_KEY else 'NOT SET'}"
     print(f"Bot v2.1 online as {bot.user} | {or_status}")
+    print(f"[Keys] {len(brain.openrouter_keys)} OpenRouter key(s) loaded", flush=True)
+    # Validate all keys in background without blocking startup
+    async def _validate_openrouter_keys():
+        import aiohttp
+        headers_base = {
+            "HTTP-Referer": "https://github.com",
+            "X-Title": "AhlulSkullBot",
+            "Content-Type": "application/json",
+        }
+        payload = {"model": OPENROUTER_FALLBACK_MODELS[0], "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}
+        valid = 0
+        for i, key in enumerate(brain.openrouter_keys):
+            try:
+                async with aiohttp.ClientSession() as s:
+                    async with s.post(OPENROUTER_URL, json=payload,
+                                      headers={**headers_base, "Authorization": f"Bearer {key}"},
+                                      timeout=aiohttp.ClientTimeout(total=8)) as r:
+                        if r.status in (200, 429):  # 429 = valid key, just quota hit
+                            status = "✓ valid" if r.status == 200 else "✓ valid (quota hit)"
+                            valid += 1
+                        else:
+                            body = await r.text()
+                            status = f"✗ invalid (HTTP {r.status})"
+                            brain.openrouter_exhausted_keys.add(key)
+                            brain.add_known_issue(f"Key {i+1} invalid: HTTP {r.status}")
+                        print(f"[Keys] Key {i+1}: {status}", flush=True)
+            except Exception as e:
+                print(f"[Keys] Key {i+1}: ✗ unreachable ({type(e).__name__})", flush=True)
+        print(f"[Keys] {valid}/{len(brain.openrouter_keys)} key(s) ready", flush=True)
+    asyncio.ensure_future(_validate_openrouter_keys())
     # Resolve vision model in background so on_ready doesn't block
     async def _resolve_vision_async():
         global OLLAMA_VISION_MODEL
