@@ -2402,8 +2402,9 @@ async def groq_health_check():
             )
             brain.add_known_issue(f"Groq key invalid (HTTP {e.code})")
             print(f"[GROQ ALERT] Key invalid (HTTP {e.code}) — update GROQ_API_KEY or use OpenRouter")
-            # DM the owner if BOT_OWNER_ID is set
-            if BOT_OWNER_ID:
+            # DM the owner once per bot session (alerted set prevents spam)
+            if BOT_OWNER_ID and "groq_key_dead" not in brain.alerted:
+                brain.alerted.add("groq_key_dead")
                 try:
                     owner = await bot.fetch_user(BOT_OWNER_ID)
                     await owner.send(msg)
