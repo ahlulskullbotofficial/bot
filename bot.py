@@ -1115,6 +1115,9 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
                 "messages": messages,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
+                # Keep reasoning tokens in the separate `reasoning` field,
+                # out of `content` — prevents thinking blocks leaking into replies.
+                "include_reasoning": True,
             }
             headers = {**headers_base, "Authorization": f"Bearer {current_key}"}
             try:
@@ -1124,7 +1127,11 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
                     async with session.post(OPENROUTER_URL, json=payload, headers=headers) as resp:
                         if resp.status == 200:
                             data = await resp.json()
-                            result = data["choices"][0]["message"]["content"].strip()
+                            msg = data["choices"][0]["message"]
+                            # Use only `content` — reasoning goes into `reasoning` field
+                            # and never touches the content we send to the user.
+                            result = (msg.get("content") or "").strip()
+                            # Still strip as a safety net for models that ignore the flag
                             result = _strip_thinking(result)
                             if result:
                                 brain.record_openrouter_success(or_model)
