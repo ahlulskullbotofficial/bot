@@ -969,6 +969,18 @@ def _strip_thinking(text: str) -> str:
     # 1. Remove <think>...</think> blocks
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.S).strip()
 
+    # 1b. Strip "reasoning preamble: actual reply" pattern.
+    # Catches things like "Gotta stay in character: Wagwan fam"
+    # or "Keep it short and roadman: init bruv" — reasoning before a colon.
+    # Only strip if the preamble looks like reasoning (contains character/style/context words).
+    _preamble_signals = re.compile(
+        r'^(.{10,120}(?:character|roadman|style|vibe|context|swagger|greeting|casual|reply|respond|keep|stay|tone)[^:]{0,60}):\s*(.+)',
+        re.I | re.S
+    )
+    m = _preamble_signals.match(text)
+    if m:
+        text = m.group(2).strip()
+
     # 2. Detect and strip system-prompt echo blocks.
     # Some models regurgitate the system prompt as a bullet list before replying.
     # Signature: multiple consecutive lines each containing known system prompt phrases.
@@ -1046,6 +1058,9 @@ def _strip_thinking(text: str) -> str:
         r'^muslim discord server',
         r'^default to one short',
         r'^only give more detail',
+        r'^gotta (stay|keep|maintain|be).{0,60}(character|roadman|style|vibe)',
+        r'^(stay|keep).{0,40}(character|roadman|style):',
+        r'^need to.{0,60}(character|style|vibe|roadman)',
     ]
     filtered = []
     for line in text.split('\n'):
