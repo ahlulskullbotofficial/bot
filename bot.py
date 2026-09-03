@@ -1341,23 +1341,10 @@ async def make_ai_reply(history, user_message, member_context, visual=False, use
         user_state = brain.get_user_state(user_id)
         mood = user_state.get("mood", "neutral")
         if mood and mood != "neutral":
-            system_parts.append(f"[User current mood detected: {mood}. Adjust tone accordingly.]")
+            system_parts.append(f"[User mood: {mood}.]")
 
-    # Inject user reply style hint
-    if user_id:
-        style_hint = brain.get_user_reply_style(user_id)
-        if style_hint:
-            system_parts.append(f"[User style: {style_hint}. Adapt your reply accordingly.]")
-
-    # Inject conversation depth so the AI knows how long you've been talking
-    if user_id:
-        user_state = brain.get_user_state(user_id)
-        count = user_state.get("message_count", 0)
-        topic = user_state.get("topic", "")
-        if count > 0:
-            depth_hint = "new conversation" if count < 5 else f"ongoing chat ({count} messages)"
-            topic_hint = f", topic: {topic}" if topic else ""
-            system_parts.append(f"[Conversation context: {depth_hint}{topic_hint}. Don't re-introduce yourself if already in chat.]")
+    # NOTE: User style and conversation context hints were removed — they caused
+    # reasoning models to echo them back verbatim instead of using them silently.
 
     # Auto-search: inject live web results when the question needs current data
     if _needs_search(user_message) and not visual:
