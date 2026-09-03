@@ -1273,15 +1273,16 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
 
     ordered_models = brain.best_openrouter_order(OPENROUTER_FALLBACK_MODELS)
 
-    # If only leaky models remain available (all clean models quota-exhausted),
-    # return the daily limit message instead of leaking thinking to users.
+    # If clean models have been 429ing repeatedly, they're quota-exhausted for today.
+    # Stop falling back to leaky reasoning models — just tell the user the limit is hit.
     _CLEAN_MODELS = {"google/gemma-4-31b-it:free", "google/gemma-4-26b-a4b-it:free"}
     all_clean_exhausted = all(
-        brain.openrouter_fail_counts.get(m, 0) >= max(1, len(brain.openrouter_keys))
+        brain.openrouter_fail_counts.get(m, 0) >= 2
         for m in _CLEAN_MODELS
     )
     if all_clean_exhausted:
-        return "I've hit my daily request limit on the good models — I'll be back properly after midnight UTC 🕛"
+        print("[AI] Clean models quota-exhausted — refusing to use leaky fallback", flush=True)
+        return "Yo, I've hit my daily AI limit 😮‍💨 Come back after midnight UTC and I'll be fully charged again innit"
 
     # Try each available key; on full-key 429, rotate to next key
     tried_keys: set = set()
