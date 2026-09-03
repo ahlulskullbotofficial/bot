@@ -1106,6 +1106,30 @@ def _strip_thinking(text: str) -> str:
         if any(sig in first for sig in monologue_signals):
             text = paragraphs[-1]
 
+    # 6. Final extraction: if the result still contains reasoning mixed in,
+    # extract only the last sentence(s) that look like an actual reply.
+    # A real reply: short, doesn't start with "I should/need/will/must", ends with punctuation.
+    # This is the nuclear option — only fires if reasoning language is still present.
+    _STILL_REASONING = re.compile(
+        r'\b(i should|i need to|i must|i will reply|i\'ll reply|my response|'
+        r'the user|user says|this is a request|in the persona|not claim|'
+        r'i should not|i cannot|as a|staying in character|keep it)\b',
+        re.I
+    )
+    if _STILL_REASONING.search(text):
+        # Split into sentences and keep only clean ones from the end
+        sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+        clean = []
+        for s in reversed(sentences):
+            s = s.strip()
+            if not s:
+                continue
+            if _STILL_REASONING.search(s):
+                break  # hit reasoning, stop collecting
+            clean.append(s)
+        if clean:
+            text = ' '.join(reversed(clean))
+
     return text.strip()
 
 
