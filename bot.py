@@ -1034,7 +1034,7 @@ def _strip_thinking(text: str) -> str:
         r"Current context:.*?(?=\n\n|\Z)",
         r"Playful British roadman.*?(?=\n\n|\Z)",
         r"Looking at my instructions.*?(?=\n\n|\Z)",
-        r"Looking at the (context|instructions|conversation).*?(?=\n\n|\Z)",
+        r"Looking at the (context|instructions|conversation|history).*?(?=\n\n|\Z)",
         r"Based on (my|the) instructions.*?(?=\n\n|\Z)",
         r"User style:.*?(?=\n\n|\Z)",
         r"\[User style.*?\]",
@@ -1042,11 +1042,17 @@ def _strip_thinking(text: str) -> str:
         r"\[Conversation context.*?\]",
         r"\[System status.*?\]",
         r"\[Web search.*?\]",
-        # Nemotron-specific: "User says: ..." preamble block
         r"User says:.*?(?=\n\n|\Z)",
         r"This is a request for.*?(?=\n\n|\Z)",
         r"I need to respond in the persona.*?(?=\n\n|\Z)",
         r"It seems (like I was|my response).*?(?=\n\n|\Z)",
+        # History narration — model summarising the conversation history
+        r"They started with.*?(?=\n\n|\Z)",
+        r"Looking at the history.*?(?=\n\n|\Z)",
+        r"(They|The user) (said|asked|started|followed|sent|typed).*?(?=\n\n|\Z)",
+        r"I('ve| have) been (keeping|giving|trying|sending|avoiding).*?(?=\n\n|\Z)",
+        r"Last exchange:.*?(?=\n\n|\Z)",
+        r"Then .*?(said|asked|followed).*?(?=\n\n|\Z)",
     ]
     for pattern in thinking_markers:
         text = re.sub(pattern, '', text, flags=re.S | re.I).strip()
@@ -1113,7 +1119,9 @@ def _strip_thinking(text: str) -> str:
     _STILL_REASONING = re.compile(
         r'\b(i should|i need to|i must|i will reply|i\'ll reply|my response|'
         r'the user|user says|this is a request|in the persona|not claim|'
-        r'i should not|i cannot|as a|staying in character|keep it)\b',
+        r'i should not|i cannot|as a|staying in character|keep it|'
+        r'they started|looking at the history|last exchange|i\'ve been keeping|'
+        r'i have been|then they said|then the user|i correctly)\b',
         re.I
     )
     if _STILL_REASONING.search(text):
