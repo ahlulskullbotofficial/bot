@@ -1222,9 +1222,9 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
                 "messages": messages,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
-                # Disable reasoning/thinking at the API level so it never appears in content.
-                # OpenRouter normalises this across all providers.
-                "reasoning": {"max_tokens": 0},
+                # Let the model think internally (keeps intelligence),
+                # but exclude reasoning tokens from the response so they never leak.
+                "include_reasoning": False,
             }
             headers = {**headers_base, "Authorization": f"Bearer {current_key}"}
             try:
