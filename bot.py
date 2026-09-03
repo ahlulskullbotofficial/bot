@@ -245,6 +245,7 @@ class BotBrain:
     def reset_openrouter_keys(self):
         """Called at midnight UTC to clear exhausted keys for the new day."""
         self.openrouter_exhausted_keys.clear()
+        self.openrouter_fail_counts.clear()
         self.openrouter_key_index = 0
         self.resolve_issue("OpenRouter quota")
         print("[Brain] OpenRouter daily quota reset — all keys re-enabled", flush=True)
@@ -1278,6 +1279,10 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
         quota_hit_count = 0   # models that returned 429 on this key
         hard_error_count = 0  # models that returned 400/404 (broken model IDs)
         for or_model in ordered_models:
+            # Skip models already known to be quota-exhausted across all keys
+            if brain.openrouter_fail_counts.get(or_model, 0) >= len(brain.openrouter_keys):
+                quota_hit_count += 1
+                continue
             payload = {
                 "model": or_model,
                 "messages": messages,
