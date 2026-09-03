@@ -48,6 +48,8 @@ OPENROUTER_API_KEY  = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_API_KEY_2 = os.environ.get("OPENROUTER_API_KEY_2", "")
 OPENROUTER_API_KEY_3 = os.environ.get("OPENROUTER_API_KEY_3", "")
 OPENROUTER_API_KEY_4 = os.environ.get("OPENROUTER_API_KEY_4", "")
+OPENROUTER_API_KEY_5 = os.environ.get("OPENROUTER_API_KEY_5", "")
+OPENROUTER_API_KEY_6 = os.environ.get("OPENROUTER_API_KEY_6", "")
 OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
 # Fallback model list — gemma first (supports thinking disable), nemotron last resort.
 OPENROUTER_FALLBACK_MODELS = [
@@ -152,6 +154,8 @@ class BotBrain:
             os.environ.get("OPENROUTER_API_KEY_2", ""),
             os.environ.get("OPENROUTER_API_KEY_3", ""),
             os.environ.get("OPENROUTER_API_KEY_4", ""),
+            os.environ.get("OPENROUTER_API_KEY_5", ""),
+            os.environ.get("OPENROUTER_API_KEY_6", ""),
         ] if k]
         self.openrouter_key_index: int = 0
         self.openrouter_exhausted_keys: set = set()  # keys that returned 429 on ALL models today
