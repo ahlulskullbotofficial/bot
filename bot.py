@@ -49,14 +49,18 @@ OPENROUTER_API_KEY_2 = os.environ.get("OPENROUTER_API_KEY_2", "")
 OPENROUTER_API_KEY_3 = os.environ.get("OPENROUTER_API_KEY_3", "")
 OPENROUTER_API_KEY_4 = os.environ.get("OPENROUTER_API_KEY_4", "")
 OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
-# Fallback model list — verified working free models on OpenRouter (August 2026).
-# brain.best_openrouter_order() puts the last-successful model first.
+# Fallback model list — gemma first (supports thinking disable), nemotron last resort.
 OPENROUTER_FALLBACK_MODELS = [
-    "nvidia/nemotron-3.5-lightning:free",
     "google/gemma-4-31b-it:free",
     "google/gemma-4-26b-a4b-it:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
-]# Prefer Qwen2.5-VL; fall back to moondream only if nothing else is installed.
+    "nvidia/nemotron-3.5-lightning:free",   # last resort — leaks thinking
+]
+# Models that properly support disabling thinking via extra_body params
+_THINKING_DISABLE_MODELS = {
+    "google/gemma-4-31b-it:free",
+    "google/gemma-4-26b-a4b-it:free",
+}# Prefer Qwen2.5-VL; fall back to moondream only if nothing else is installed.
 PREFERRED_VISION_MODELS = (
     "qwen2.5vl:3b",
     "qwen2.5vl:7b",
@@ -1226,6 +1230,9 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
                 # but exclude reasoning tokens from the response so they never leak.
                 "include_reasoning": False,
             }
+            # For Gemma models, also pass the native thinking-disable param
+            if or_model in _THINKING_DISABLE_MODELS:
+                payload["extra_body"] = {"thinking": {"type": "disabled"}}
             headers = {**headers_base, "Authorization": f"Bearer {current_key}"}
             try:
                 print(f"[AI] Trying OpenRouter ({or_model}) key[{brain.openrouter_key_index}]...", flush=True)
