@@ -969,7 +969,35 @@ def _strip_thinking(text: str) -> str:
     # 1. Remove <think>...</think> blocks
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.S).strip()
 
-    # 2. Remove explicit thinking headers + everything that follows until blank line
+    # 2. Detect and strip system-prompt echo blocks.
+    # Some models regurgitate the system prompt as a bullet list before replying.
+    # Signature: multiple consecutive lines each containing known system prompt phrases.
+    # We detect any run of 2+ such lines and remove them all, keeping only what follows.
+    _SYSPROMPT_SIGNALS = [
+        'muslim discord', 'british roadman', 'islamic manners', 'roadman style',
+        'playful.*concise', 'concise.*witty', 'default to one short',
+        'only give more detail', "don't claim to be muslim", 'recommend.*imam',
+        'visual analysis', 'no reasoning', 'meta.commentary',
+        'user said .reply briefly', 'speak for islam', 'sectarian claims',
+        'not cruel', 'respect islamic', 'confident.*witty', 'cheeky',
+        'qualified local imam', 'personal rulings',
+    ]
+    lines = text.split('\n')
+    sysprompt_indices = set()
+    for i, line in enumerate(lines):
+        ll = line.strip().lower().lstrip('•-*# ')
+        if any(re.search(p, ll) for p in _SYSPROMPT_SIGNALS):
+            sysprompt_indices.add(i)
+    if len(sysprompt_indices) >= 2:
+        # Find the last sysprompt line and drop everything up to and including it
+        last_idx = max(sysprompt_indices)
+        remaining = [l for i, l in enumerate(lines) if i > last_idx]
+        text = '\n'.join(remaining).strip()
+        if not text:
+            return text
+        lines = text.split('\n')
+
+    # 3. Remove explicit thinking header blocks
     thinking_markers = [
         r"Here['']s a thinking process:.*?(?=\n\n|\Z)",
         r"Here's my thinking:.*?(?=\n\n|\Z)",
@@ -1001,8 +1029,7 @@ def _strip_thinking(text: str) -> str:
     if not text:
         return text
 
-    # 3. Line-by-line filter: drop any line that looks like internal reasoning.
-    # This catches single-paragraph models that don't use blank line separators.
+    # 4. Line-by-line filter: drop individual lines that look like internal reasoning
     reasoning_line_signals = [
         r'^(okay|ok|alright|so|now|well),?\s+i.{0,60}$',
         r"^i('ll| will| should| need to| want to| must| can| am going to).{0,80}$",
@@ -1016,34 +1043,33 @@ def _strip_thinking(text: str) -> str:
         r"^i'll (keep|make|use|try|aim|go)",
         r'^actually,?\s+i',
         r'^(british roadman|roadman style)',
+        r'^muslim discord server',
+        r'^default to one short',
+        r'^only give more detail',
     ]
-    lines = text.split('\n')
     filtered = []
-    for line in lines:
+    for line in text.split('\n'):
         stripped = line.strip()
         if not stripped:
             filtered.append(line)
             continue
-        is_reasoning = any(re.match(p, stripped, re.I) for p in reasoning_line_signals)
-        if not is_reasoning:
+        if not any(re.match(p, stripped, re.I) for p in reasoning_line_signals):
             filtered.append(line)
     text = '\n'.join(filtered).strip()
 
     if not text:
         return text
 
-    # 4. Multi-paragraph fallback: if first paragraph still looks like monologue, drop it
+    # 5. Multi-paragraph fallback: if first paragraph still looks like monologue, drop it
     paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
     if len(paragraphs) > 1:
         first = paragraphs[0].lower()
         monologue_signals = [
-            'the user', 'user said', 'this is a', 'i should', 'i need to',
-            'i want to', "i'm going", 'i will reply', "i'll reply",
-            'i must', 'my response', 'let me', 'i have to', "i'm a",
-            'playful', 'british roadman', 'current context', 'i can reply',
-            'looking at my', 'looking at the', 'based on my', 'based on the',
-            'my instructions', 'the instructions', "i'm a welcoming",
-            'user style', 'system status',
+            'the user', 'user said', 'i should', 'i need to', 'i want to',
+            "i'm going", 'i will reply', "i'll reply", 'i must', 'my response',
+            'let me', 'i have to', "i'm a", 'playful', 'british roadman',
+            'current context', 'looking at my', 'based on my',
+            'user style', 'system status', 'muslim discord',
         ]
         if any(sig in first for sig in monologue_signals):
             text = paragraphs[-1]
@@ -1052,22 +1078,34 @@ def _strip_thinking(text: str) -> str:
 
 
 def _looks_like_fragment(text: str) -> bool:
-    """Return True if the reply looks like a leaked reasoning fragment, not a real reply."""
-    if not text or len(text) > 300:
-        return False
+    """Return True if the reply looks like a leaked reasoning fragment or system prompt echo."""
+    if not text:
+        return True
     t = text.strip().lower()
-    fragment_signals = [
-        r"^(i'll|i will|i should|i need to|i want to|i must|i can|i'm going)",
-        r"^(okay|ok|alright|so|well|now),?\s+i",
-        r"^(let me|let's)\b",
-        r"^actually,?\s+i",
-        r"^(the user|this user)\b",
-        r"^user style:",
-        r"^my (response|reply|answer)\b",
-        r"^(british roadman|roadman style)\b",
-        r"^(thinking|planning|reasoning):",
-    ]
-    return any(re.match(p, t) for p in fragment_signals)
+    # Short fragment signals (under 300 chars)
+    if len(text) <= 300:
+        fragment_signals = [
+            r"^(i'll|i will|i should|i need to|i want to|i must|i can|i'm going)",
+            r"^(okay|ok|alright|so|well|now),?\s+i",
+            r"^(let me|let's)\b",
+            r"^actually,?\s+i",
+            r"^(the user|this user)\b",
+            r"^user style:",
+            r"^my (response|reply|answer)\b",
+            r"^(british roadman|roadman style)\b",
+            r"^(thinking|planning|reasoning):",
+            r"^muslim discord server",
+            r"^default to one short",
+        ]
+        if any(re.match(p, t) for p in fragment_signals):
+            return True
+    # System prompt echo: text contains multiple known system prompt phrases
+    sysprompt_hits = sum(1 for p in [
+        'muslim discord', 'british roadman', 'islamic manners',
+        'default to one short', 'no reasoning', 'recommend.*imam',
+        'speak for islam', 'visual analysis',
+    ] if re.search(p, t))
+    return sysprompt_hits >= 2
 
 
 def _call_ai(messages, max_tokens=160, temperature=0.8):
@@ -1169,9 +1207,6 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
                 "messages": messages,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
-                # Keep reasoning tokens in the separate `reasoning` field,
-                # out of `content` — prevents thinking blocks leaking into replies.
-                "include_reasoning": True,
             }
             headers = {**headers_base, "Authorization": f"Bearer {current_key}"}
             try:
