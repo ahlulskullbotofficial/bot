@@ -222,19 +222,23 @@ class BotBrain:
         """Return the current active OpenRouter key, skipping exhausted ones."""
         live = [k for k in self.openrouter_keys if k not in self.openrouter_exhausted_keys]
         if not live:
-            return ""  # all keys exhausted for today
+            return ""
         self.openrouter_key_index = self.openrouter_key_index % len(live)
         return live[self.openrouter_key_index]
 
     def mark_openrouter_key_exhausted(self, key: str):
         """Called when a key gets 429 on every model — rotate to the next key."""
+        if key in self.openrouter_exhausted_keys:
+            return  # already marked, don't double-count
         self.openrouter_exhausted_keys.add(key)
         live = [k for k in self.openrouter_keys if k not in self.openrouter_exhausted_keys]
         if live:
-            self.openrouter_key_index = 0
-            print(f"[Brain] OpenRouter key exhausted — rotating ({len(live)} key(s) remaining)", flush=True)
+            # Keep index pointing at the next live key
+            self.openrouter_key_index = self.openrouter_key_index % len(live)
+            print(f"[Brain] OpenRouter key exhausted — rotating to key[{self.openrouter_key_index}] ({len(live)} key(s) remaining)", flush=True)
             self.resolve_issue("OpenRouter quota")
         else:
+            self.openrouter_key_index = 0
             print("[Brain] ALL OpenRouter keys exhausted for today — bot cannot reply until quota resets", flush=True)
             self.add_known_issue("All OpenRouter keys at daily limit — quota resets at midnight UTC")
 
@@ -1336,6 +1340,9 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
             pass
 
     print("[AI] All providers failed.", flush=True)
+    # If all keys are exhausted return a clean message instead of None→error message
+    if not brain.active_openrouter_key():
+        return "I've hit my daily request limit — I'll be back online after midnight UTC. Catch you then innit 🕛"
     return None
 
 
