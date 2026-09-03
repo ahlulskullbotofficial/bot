@@ -2578,8 +2578,16 @@ async def on_ready():
                     ) as r:
                         if r.status == 200:
                             data = await r.json()
-                            label = data.get("data", {}).get("label", "unnamed")
-                            status = f"✓ valid ({label})"
+                            d = data.get("data", {})
+                            label = d.get("label", "unnamed")
+                            limit = d.get("limit")
+                            usage = d.get("usage", 0)
+                            # Show remaining credits — if same across all keys = same account
+                            if limit is not None:
+                                remaining = f"${limit - usage:.4f} remaining"
+                            else:
+                                remaining = "free tier (no credit limit)"
+                            status = f"✓ valid | label: {label} | {remaining}"
                             valid += 1
                         else:
                             status = f"✗ invalid (HTTP {r.status})"
