@@ -285,10 +285,14 @@ class BotBrain:
         self.openrouter_fail_counts[model] = self.openrouter_fail_counts.get(model, 0) + 1
 
     def best_openrouter_order(self, models: list) -> list:
-        """Return models sorted: last-known-good first, then by fewest failures."""
+        """Return models sorted: non-reasoning models first, then last-known-good, then by fewest failures.
+        Nemotron (reasoning/leaky) is always deprioritised below gemma and other clean models."""
+        _LEAKY_MODELS = {"nvidia/nemotron-3.5-lightning:free", "nvidia/nemotron-3-super-120b-a12b:free"}
         def score(m):
+            if m in _LEAKY_MODELS:
+                return 1000  # always last
             if m == self.openrouter_last_good_model:
-                return -1  # first
+                return -1   # best among non-leaky
             return self.openrouter_fail_counts.get(m, 0)
         return sorted(models, key=score)
 
@@ -1038,6 +1042,11 @@ def _strip_thinking(text: str) -> str:
         r"\[Conversation context.*?\]",
         r"\[System status.*?\]",
         r"\[Web search.*?\]",
+        # Nemotron-specific: "User says: ..." preamble block
+        r"User says:.*?(?=\n\n|\Z)",
+        r"This is a request for.*?(?=\n\n|\Z)",
+        r"I need to respond in the persona.*?(?=\n\n|\Z)",
+        r"It seems (like I was|my response).*?(?=\n\n|\Z)",
     ]
     for pattern in thinking_markers:
         text = re.sub(pattern, '', text, flags=re.S | re.I).strip()
@@ -1065,6 +1074,10 @@ def _strip_thinking(text: str) -> str:
         r'^gotta (stay|keep|maintain|be).{0,60}(character|roadman|style|vibe)',
         r'^(stay|keep).{0,40}(character|roadman|style):',
         r'^need to.{0,60}(character|style|vibe|roadman)',
+        r'^user says:',
+        r'^this is a request for',
+        r'^i need to respond in the persona',
+        r'^it seems (like i was|my response)',
     ]
     filtered = []
     for line in text.split('\n'):
@@ -1115,6 +1128,10 @@ def _looks_like_fragment(text: str) -> bool:
             r"^(thinking|planning|reasoning):",
             r"^muslim discord server",
             r"^default to one short",
+            r"^user says:",
+            r"^this is a request",
+            r"^i need to respond in",
+            r"^it seems (like i was|my response)",
         ]
         if any(re.match(p, t) for p in fragment_signals):
             return True
