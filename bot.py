@@ -146,6 +146,7 @@ class BotBrain:
 
         # --- Request counters (kept for stats display) ---
         self.openrouter_request_count: int = 0
+        self.openrouter_fail_reset_date: str = ""  # date string for daily reset
 
         # --- OpenRouter key rotation ---
         # Load all available keys; rotate to next when one hits its 429 daily limit
@@ -291,6 +292,11 @@ class BotBrain:
         self.openrouter_fail_counts[model] = 0
 
     def record_openrouter_failure(self, model: str):
+        # Reset counts daily
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if self.openrouter_fail_reset_date != today:
+            self.openrouter_fail_counts.clear()
+            self.openrouter_fail_reset_date = today
         self.openrouter_fail_counts[model] = self.openrouter_fail_counts.get(model, 0) + 1
 
     def best_openrouter_order(self, models: list) -> list:
@@ -1266,6 +1272,16 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
     }
 
     ordered_models = brain.best_openrouter_order(OPENROUTER_FALLBACK_MODELS)
+
+    # If only leaky models remain available (all clean models quota-exhausted),
+    # return the daily limit message instead of leaking thinking to users.
+    _CLEAN_MODELS = {"google/gemma-4-31b-it:free", "google/gemma-4-26b-a4b-it:free"}
+    all_clean_exhausted = all(
+        brain.openrouter_fail_counts.get(m, 0) >= max(1, len(brain.openrouter_keys))
+        for m in _CLEAN_MODELS
+    )
+    if all_clean_exhausted:
+        return "I've hit my daily request limit on the good models — I'll be back properly after midnight UTC 🕛"
 
     # Try each available key; on full-key 429, rotate to next key
     tried_keys: set = set()
