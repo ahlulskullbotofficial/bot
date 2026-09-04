@@ -65,8 +65,10 @@ OPENROUTER_FALLBACK_MODELS = [
 # Google Gemini — free tier: 1500 requests/day, no thinking leaks, no account juggling.
 # Get key at: https://aistudio.google.com/apikey
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL   = "gemini-2.0-flash-lite"   # free tier, available to new users
+GEMINI_MODEL   = "gemini-3.5-flash"   # free tier, current model as of Aug 2026
 GEMINI_URL     = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+# Fallback Gemini models in order if primary 404s
+GEMINI_FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]
 # Models that properly support disabling thinking via extra_body params
 _THINKING_DISABLE_MODELS = {
     "google/gemma-4-31b-it:free",
@@ -1297,7 +1299,7 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
 
 async def _call_gemini_async(messages, max_tokens=160, temperature=0.8):
     """
-    Call Google Gemini API.
+    Call Google Gemini API. Tries GEMINI_FALLBACK_MODELS in order until one works.
     Returns: reply string on success, "QUOTA" on 429, None on hard error.
     """
     import aiohttp
@@ -1326,27 +1328,34 @@ async def _call_gemini_async(messages, max_tokens=160, temperature=0.8):
     if system_text.strip():
         payload["systemInstruction"] = {"parts": [{"text": system_text.strip()}]}
 
-    url = f"{GEMINI_URL}?key={GEMINI_API_KEY}"
-    try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
-            async with session.post(url, json=payload) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    result = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                    result = _strip_thinking(result)
-                    if result:
-                        print(f"[AI] Gemini success", flush=True)
-                        brain.log_event("gemini", "reply_ok")
-                        return result
-                elif resp.status == 429:
-                    print(f"[AI] Gemini 429: daily quota hit — falling back to OpenRouter", flush=True)
-                    return "QUOTA"  # sentinel: quota hit, try OpenRouter
-                else:
-                    body = await resp.text()
-                    print(f"[AI] Gemini HTTP {resp.status}: {body[:120]}", flush=True)
-                    return None  # hard error — don't waste OpenRouter keys
-    except Exception as e:
-        print(f"[AI] Gemini exception: {type(e).__name__}: {e}", flush=True)
+    for model in GEMINI_FALLBACK_MODELS:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
+                async with session.post(url, json=payload) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        result = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                        result = _strip_thinking(result)
+                        if result:
+                            print(f"[AI] Gemini success ({model})", flush=True)
+                            brain.log_event("gemini", "reply_ok")
+                            return result
+                    elif resp.status == 429:
+                        print(f"[AI] Gemini 429: daily quota hit", flush=True)
+                        return "QUOTA"
+                    elif resp.status == 404:
+                        print(f"[AI] Gemini 404 ({model}): not available, trying next...", flush=True)
+                        continue
+                    else:
+                        body = await resp.text()
+                        print(f"[AI] Gemini HTTP {resp.status} ({model}): {body[:120]}", flush=True)
+                        return None
+        except Exception as e:
+            print(f"[AI] Gemini exception ({model}): {type(e).__name__}: {e}", flush=True)
+            continue
+
+    print("[AI] All Gemini models returned 404 — update GEMINI_FALLBACK_MODELS", flush=True)
     return None
 
 
