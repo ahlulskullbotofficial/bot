@@ -1035,17 +1035,7 @@ def _strip_thinking(text: str) -> str:
     # 1. Remove <think>...</think> blocks
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.S).strip()
 
-    # 1b. Strip "reasoning preamble: actual reply" pattern.
-    # Catches things like "Gotta stay in character: Wagwan fam"
-    # or "Keep it short and roadman: init bruv" — reasoning before a colon.
-    # Only strip if the preamble looks like reasoning (contains character/style/context words).
-    _preamble_signals = re.compile(
-        r'^(.{10,120}(?:character|roadman|style|vibe|context|swagger|greeting|casual|reply|respond|keep|stay|tone)[^:]{0,60}):\s*(.+)',
-        re.I | re.S
-    )
-    m = _preamble_signals.match(text)
-    if m:
-        text = m.group(2).strip()
+    # 1b. (preamble stripper removed — Gemini doesn't leak reasoning preambles)
 
     # 2. Detect and strip system-prompt echo blocks.
     # Some models regurgitate the system prompt as a bullet list before replying.
@@ -1502,7 +1492,7 @@ async def make_ai_reply(history, user_message, member_context, visual=False, use
     messages = [
         {"role": "system", "content": "\n\n".join(system_parts)}
     ] + history + [{"role": "user", "content": user_message}]
-    max_tokens  = 600 if visual else 400
+    max_tokens  = 600 if visual else 800
     temperature = 0.2 if visual else 0.8
     try:
         result = await _call_ai_async(messages, max_tokens=max_tokens, temperature=temperature)
