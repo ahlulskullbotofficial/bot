@@ -1383,7 +1383,8 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
             pass
 
     print("[AI] All providers failed.", flush=True)
-    return None
+    # Return a clear message so users know what's happening
+    return "I'm having trouble reaching my AI right now — try again in a sec innit"
 
 
 async def make_ai_reply(history, user_message, member_context, visual=False, user_id=None):
@@ -2384,13 +2385,15 @@ async def _answer_with_ai_inner(message, stripped_content):
             reply = await make_ai_reply(history, ai_user_message, member_context, bool(image_description), message.author.id)
         reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
         # Validate reply — regenerate on system errors, empty replies, image errors, or leaked fragments
+        # But never regen the quota message — it's intentional
+        _QUOTA_MSG = "daily AI limit"
         sane, reason = _is_reply_sane(user_message, reply)
-        if not sane or _looks_like_fragment(reply):
+        if (_QUOTA_MSG not in reply) and (not sane or _looks_like_fragment(reply)):
             safe_prompt = user_message + "\n\n[IMPORTANT: Reply directly and naturally. Output ONLY your actual reply, nothing else.]"
             try:
                 async with message.channel.typing():
                     regen = await make_ai_reply(history, safe_prompt, member_context, False, message.author.id)
-                if regen and regen.strip():
+                if regen and regen.strip() and _QUOTA_MSG not in regen:
                     reply = regen[:1900]
             except Exception:
                 pass
