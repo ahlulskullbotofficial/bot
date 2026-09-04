@@ -1234,7 +1234,7 @@ def _looks_like_fragment(text: str) -> bool:
     return sysprompt_hits >= 2
 
 
-def _call_ai(messages, max_tokens=160, temperature=0.8):
+def _call_ai(messages, max_tokens=400, temperature=0.8):
     """
     Sync AI caller for use in threads (summarisation, fact extraction).
     For the main reply path use _call_ai_async instead.
@@ -1297,7 +1297,7 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
         return None
 
 
-async def _call_gemini_async(messages, max_tokens=160, temperature=0.8):
+async def _call_gemini_async(messages, max_tokens=400, temperature=0.8):
     """
     Call Google Gemini API. Tries GEMINI_FALLBACK_MODELS in order until one works.
     Returns: reply string on success, "QUOTA" on 429, None on hard error.
@@ -1359,7 +1359,7 @@ async def _call_gemini_async(messages, max_tokens=160, temperature=0.8):
     return None
 
 
-async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
+async def _call_ai_async(messages, max_tokens=400, temperature=0.8):
     """
     Async AI caller. Priority: Gemini (1500/day free) → OpenRouter gemma (50/day per key).
     No reasoning models — no thinking leaks possible.
@@ -1502,7 +1502,7 @@ async def make_ai_reply(history, user_message, member_context, visual=False, use
     messages = [
         {"role": "system", "content": "\n\n".join(system_parts)}
     ] + history + [{"role": "user", "content": user_message}]
-    max_tokens  = 180 if visual else 160
+    max_tokens  = 600 if visual else 400
     temperature = 0.2 if visual else 0.8
     try:
         result = await _call_ai_async(messages, max_tokens=max_tokens, temperature=temperature)
