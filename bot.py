@@ -1359,7 +1359,14 @@ async def _call_ai_async(messages, max_tokens=400, temperature=0.8):
         if gemini_result is None:
             # Hard error (404, bad key, exception) — don't waste OpenRouter keys
             return "I'm having trouble reaching my AI right now — try again in a sec innit"
-        # gemini_result == "QUOTA" — fall through to OpenRouter
+        # gemini_result == "QUOTA" — check if OpenRouter has anything left before trying
+        _CLEAN_MODELS_OR = ["google/gemma-4-31b-it:free", "google/gemma-4-26b-a4b-it:free"]
+        or_has_capacity = brain.active_openrouter_key() and any(
+            not brain.is_model_quota_exhausted(m) for m in _CLEAN_MODELS_OR
+        )
+        if not or_has_capacity:
+            print("[AI] Gemini quota hit and OpenRouter exhausted — daily limit", flush=True)
+            return "Yo, I've hit my daily AI limit 😮‍💨 Come back after midnight UTC and I'll be fully loaded again innit 🕛"
 
     # 2. OpenRouter gemma fallback — used when Gemini quota is hit
     if not brain.openrouter_keys and not OPENROUTER_API_KEY:
@@ -1713,8 +1720,21 @@ def collect_visual_sources(message):
 
 
 def download_image_url(url):
+    # Skip webpage URLs that aren't direct images — they'd download HTML not an image
+    parsed_lower = url.lower()
+    if any(host in parsed_lower for host in ("tenor.com/view", "giphy.com/gifs", "giphy.com/clips")):
+        raise ValueError("webpage URL not a direct image — skip")
+    # Only download if URL looks like a direct image
+    image_exts = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif")
+    has_image_ext = any(parsed_lower.split("?")[0].endswith(ext) for ext in image_exts)
+    is_media_cdn = any(cdn in parsed_lower for cdn in ("media.tenor.com", "media.giphy.com", "media.discordapp", "cdn.discordapp", "media1.tenor"))
+    if not has_image_ext and not is_media_cdn:
+        raise ValueError("URL doesn't look like a direct image")
     request = urllib.request.Request(url, headers=DOWNLOAD_HEADERS)
-    with urllib.request.urlopen(request, timeout=60) as response:
+    with urllib.request.urlopen(request, timeout=15) as response:
+        content_type = response.headers.get("content-type", "")
+        if "text/html" in content_type:
+            raise ValueError("URL returned HTML not an image")
         data = response.read(MAX_VISION_BYTES + 1)
     if len(data) > MAX_VISION_BYTES:
         raise ValueError("image too large")
