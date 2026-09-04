@@ -51,12 +51,10 @@ OPENROUTER_API_KEY_4 = os.environ.get("OPENROUTER_API_KEY_4", "")
 OPENROUTER_API_KEY_5 = os.environ.get("OPENROUTER_API_KEY_5", "")
 OPENROUTER_API_KEY_6 = os.environ.get("OPENROUTER_API_KEY_6", "")
 OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
-# Fallback model list — gemma first (supports thinking disable), nemotron last resort.
+# Only clean (non-reasoning) models. Nemotron removed entirely — it always leaks thinking.
 OPENROUTER_FALLBACK_MODELS = [
     "google/gemma-4-31b-it:free",
     "google/gemma-4-26b-a4b-it:free",
-    "nvidia/nemotron-3-super-120b-a12b:free",
-    "nvidia/nemotron-3.5-lightning:free",   # last resort — leaks thinking
 ]
 # Models that properly support disabling thinking via extra_body params
 _THINKING_DISABLE_MODELS = {
@@ -1300,19 +1298,16 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
     }
 
     _CLEAN_MODELS = ["google/gemma-4-31b-it:free", "google/gemma-4-26b-a4b-it:free"]
-    _LEAKY_MODELS = ["nvidia/nemotron-3-super-120b-a12b:free", "nvidia/nemotron-3.5-lightning:free"]
 
-    # Build ordered list: clean models first, leaky models only if clean ones not exhausted
+    # Only clean models — no nemotron, no leaky models ever
     clean_available = [m for m in _CLEAN_MODELS if not brain.is_model_quota_exhausted(m)]
-    leaky_available = [m for m in _LEAKY_MODELS if not brain.is_model_quota_exhausted(m)]
 
-    # If all clean models are quota-exhausted, tell the user instead of leaking thinking
+    # If all clean models are quota-exhausted, tell the user
     if not clean_available:
-        print("[AI] All clean models quota-exhausted — not falling back to leaky models", flush=True)
+        print("[AI] All models quota-exhausted — daily limit hit", flush=True)
         return "Yo, I've hit my daily AI limit 😮‍💨 Come back after midnight UTC and I'll be fully loaded again innit 🕛"
 
-    # Try clean models first, then leaky if clean fails for non-quota reasons
-    models_to_try = clean_available + leaky_available
+    models_to_try = clean_available
 
     tried_keys: set = set()
 
@@ -1372,10 +1367,9 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
         if all_429 and non_exhausted:
             brain.mark_openrouter_key_exhausted(current_key)
 
-        # Re-check after quota tracking — if all clean models now exhausted, stop
-        clean_still_available = [m for m in _CLEAN_MODELS if not brain.is_model_quota_exhausted(m)]
-        if not clean_still_available:
-            print("[AI] All clean models now quota-exhausted — stopping", flush=True)
+        # Re-check — if all models now exhausted, return quota message
+        if not [m for m in _CLEAN_MODELS if not brain.is_model_quota_exhausted(m)]:
+            print("[AI] All models now quota-exhausted — stopping", flush=True)
             return "Yo, I've hit my daily AI limit 😮‍💨 Come back after midnight UTC and I'll be fully loaded again innit 🕛"
 
     # Ollama local fallback
