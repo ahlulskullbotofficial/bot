@@ -2502,13 +2502,15 @@ async def _answer_with_ai_inner(message, stripped_content):
     # knows what others were talking about, not just its own conversation history.
     try:
         channel_ctx_msgs = []
-        async for msg in message.channel.history(limit=8, before=message):
+        async for msg in message.channel.history(limit=20, before=message):
             if msg.author.bot:
                 continue
             name = msg.author.display_name
             content = msg.content.strip()[:200]
             if content:
                 channel_ctx_msgs.append(f"{name}: {content}")
+            if len(channel_ctx_msgs) >= 15:
+                break
         if channel_ctx_msgs:
             channel_ctx_msgs.reverse()  # oldest first
             channel_context = "\n".join(channel_ctx_msgs)
