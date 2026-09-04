@@ -67,8 +67,8 @@ OPENROUTER_FALLBACK_MODELS = [
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL   = "gemini-3.5-flash"   # free tier, current model as of Aug 2026
 GEMINI_URL     = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
-# Fallback Gemini models in order if primary 404s
-GEMINI_FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]
+# Fallback Gemini models in order — gemini-3.6-flash first (confirmed working)
+GEMINI_FALLBACK_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]
 # Models that properly support disabling thinking via extra_body params
 _THINKING_DISABLE_MODELS = {
     "google/gemma-4-31b-it:free",
@@ -2755,59 +2755,27 @@ BOT_OWNER_ID = int(os.environ.get("BOT_OWNER_ID", "0"))
 async def on_ready():
     global bot_loop, console_started, slash_commands_synced, OLLAMA_VISION_MODEL
     bot_loop = asyncio.get_running_loop()
-    or_status = f"OpenRouter: {'set (' + OPENROUTER_API_KEY[:12] + '...)' if OPENROUTER_API_KEY else 'NOT SET'}"
-    print(f"Bot v2.1 online as {bot.user} | {or_status}")
-    print(f"[Keys] {len(brain.openrouter_keys)} OpenRouter key(s) loaded", flush=True)
-    # Validate all keys in background without blocking startup
-    async def _validate_openrouter_keys():
-        import aiohttp
-        valid = 0
-        for i, key in enumerate(brain.openrouter_keys):
-            try:
-                # GET /api/v1/key — returns key info without spending any quota
-                async with aiohttp.ClientSession() as s:
-                    async with s.get(
-                        "https://openrouter.ai/api/v1/key",
-                        headers={"Authorization": f"Bearer {key}"},
-                        timeout=aiohttp.ClientTimeout(total=8)
-                    ) as r:
-                        if r.status == 200:
-                            data = await r.json()
-                            d = data.get("data", {})
-                            label = d.get("label", "unnamed")
-                            limit = d.get("limit")
-                            usage = d.get("usage", 0)
-                            # Show remaining credits — if same across all keys = same account
-                            if limit is not None:
-                                remaining = f"${limit - usage:.4f} remaining"
-                            else:
-                                remaining = "free tier (no credit limit)"
-                            status = f"✓ valid | label: {label} | {remaining}"
-                            valid += 1
-                        else:
-                            status = f"✗ invalid (HTTP {r.status})"
-                            brain.openrouter_exhausted_keys.add(key)
-                            brain.add_known_issue(f"Key {i+1} invalid: HTTP {r.status}")
-                        print(f"[Keys] Key {i+1}: {status}", flush=True)
-            except Exception as e:
-                print(f"[Keys] Key {i+1}: ✗ unreachable ({type(e).__name__})", flush=True)
-        print(f"[Keys] {valid}/{len(brain.openrouter_keys)} key(s) ready", flush=True)
-        if valid == 0:
-            brain.add_known_issue("No valid OpenRouter keys — check OPENROUTER_API_KEY env vars")
-    asyncio.ensure_future(_validate_openrouter_keys())
-    # Resolve vision model in background so on_ready doesn't block
-    async def _resolve_vision_async():
-        global OLLAMA_VISION_MODEL
-        OLLAMA_VISION_MODEL = await asyncio.to_thread(resolve_vision_model)
-        brain.vision_model = OLLAMA_VISION_MODEL
-        print(f"Using vision model: {OLLAMA_VISION_MODEL}")
-    asyncio.ensure_future(_resolve_vision_async())
+    gemini_status = "set" if GEMINI_API_KEY else "NOT SET"
+    print(f"Bot v2.1 online as {bot.user} | Gemini: {gemini_status} | OpenRouter keys: {len(brain.openrouter_keys)}")
+    # Only start Ollama health check if Ollama binary exists
+    import shutil
+    ollama_installed = shutil.which("ollama") is not None
+    if ollama_installed:
+        async def _resolve_vision_async():
+            global OLLAMA_VISION_MODEL
+            OLLAMA_VISION_MODEL = await asyncio.to_thread(resolve_vision_model)
+            brain.vision_model = OLLAMA_VISION_MODEL
+            print(f"Using vision model: {OLLAMA_VISION_MODEL}")
+        asyncio.ensure_future(_resolve_vision_async())
+    else:
+        brain.ollama_alive = False
+        print("[Startup] Ollama not installed — using Gemini for vision and AI", flush=True)
     if not console_started:
         console_started = True
         threading.Thread(target=send_from_console, daemon=True).start()
     if not deliver_scheduled_messages.is_running():
         deliver_scheduled_messages.start()
-    if not ollama_health_check.is_running():
+    if ollama_installed and not ollama_health_check.is_running():
         ollama_health_check.start()
     if not openrouter_quota_reset_check.is_running():
         openrouter_quota_reset_check.start()

@@ -38,29 +38,27 @@ ENV_FILE            = Path(__file__).with_name(".env")
 OLLAMA_URL          = "http://127.0.0.1:11434/api/chat"
 CODER_MODEL         = "qwen2.5-coder:7b"
 FALLBACK_MODEL      = "llama3.2:3b"
-GROQ_URL            = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_CODER_MODEL    = "llama-3.3-70b-versatile"   # best free model for code repair
+GEMINI_URL_AUTOFIX  = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
 STABILITY_SECS      = 45
 MAX_FIX_ATTEMPTS    = 3
 FILE_WATCH_INTERVAL = 2
 REPEAT_THRESHOLD    = 3
 
 
-def _load_groq_key():
-    """Read GROQ_API_KEY from environment — works both locally and on hosting servers."""
+def _load_gemini_key():
+    """Read GEMINI_API_KEY from environment or .env file."""
     import os
-    # Always check live env vars first (set by hosting platform)
-    key = os.environ.get("GROQ_API_KEY", "")
+    key = os.environ.get("GEMINI_API_KEY", "")
     if key:
         return key
-    # Fallback: read from .env file for local development
     try:
         for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
             line = line.strip()
-            if line.startswith("GROQ_API_KEY=") and not line.startswith("#"):
+            if line.startswith("GEMINI_API_KEY=") and not line.startswith("#"):
                 return line.split("=", 1)[1].strip()
     except Exception:
         pass
+    return ""
     return ""
 
 
@@ -146,17 +144,17 @@ def model_present(name):
 
 
 def best_model():
-    """Return the best available coding model — local Ollama first, Groq fallback."""
+    """Return the best available coding model — local Ollama first, Gemini fallback."""
     if ollama_alive():
         if model_present(CODER_MODEL):
             return ("ollama", CODER_MODEL)
         if model_present(FALLBACK_MODEL):
             log(f"[AutoFix] {CODER_MODEL} not available, using {FALLBACK_MODEL}")
             return ("ollama", FALLBACK_MODEL)
-    groq_key = _load_groq_key()
-    if groq_key:
-        log(f"[AutoFix] Ollama not available, using Groq ({GROQ_CODER_MODEL}) for code repair")
-        return ("groq", groq_key)
+    gemini_key = _load_gemini_key()
+    if gemini_key:
+        log(f"[AutoFix] Ollama not available, using Gemini for code repair")
+        return ("gemini", gemini_key)
     return None
 
 
@@ -166,23 +164,19 @@ def ask_ai(model_info, prompt):
         return ""
     backend, model_or_key = model_info
 
-    if backend == "groq":
+    if backend == "gemini":
         payload = json.dumps({
-            "model": GROQ_CODER_MODEL,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 1000,
-            "temperature": 0.05,
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {"maxOutputTokens": 1000, "temperature": 0.05},
         }).encode()
         req = urllib.request.Request(
-            GROQ_URL, data=payload,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {model_or_key}",
-            },
+            f"{GEMINI_URL_AUTOFIX}?key={model_or_key}",
+            data=payload,
+            headers={"Content-Type": "application/json"},
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=60) as resp:
-            return json.loads(resp.read())["choices"][0]["message"]["content"].strip()
+            return json.loads(resp.read())["candidates"][0]["content"]["parts"][0]["text"].strip()
 
     # Ollama backend
     payload = json.dumps({
@@ -503,13 +497,13 @@ def run():
     log("=" * 60)
     log("AutoFix watchdog started")
     log(f"Bot     : {BOT_FILE}")
-    groq_key = _load_groq_key()
+    gemini_key = _load_gemini_key()
     if ollama_alive():
         log(f"AI model: {CODER_MODEL} (Ollama local)")
-    elif groq_key:
-        log(f"AI model: {GROQ_CODER_MODEL} (Groq cloud fallback)")
+    elif gemini_key:
+        log(f"AI model: Gemini (cloud fallback for code repair)")
     else:
-        log("AI model: NONE — no Ollama and no GROQ_API_KEY. Auto-fix disabled.")
+        log("AI model: NONE — no Ollama and no GEMINI_API_KEY. Auto-fix disabled.")
     log(f"Watching: crashes + {len(BEHAVIOUR_PATTERNS)} behaviour patterns")
     log("=" * 60)
 
