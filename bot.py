@@ -42,14 +42,20 @@ autoreact_file = Path(__file__).with_name("autoreact_users.json")
 memory_file = Path(__file__).with_name("bot_memory.sqlite3")
 BOT_REACTION = "\U0001f480"
 OLLAMA_MODEL = "llama3.2:3b"
-# OpenRouter — primary AI provider. Add extra keys (OPENROUTER_API_KEY_2, _3, _4)
-# for automatic rotation when one key hits its daily free quota (429).
-OPENROUTER_API_KEY  = os.environ.get("OPENROUTER_API_KEY", "")
-OPENROUTER_API_KEY_2 = os.environ.get("OPENROUTER_API_KEY_2", "")
-OPENROUTER_API_KEY_3 = os.environ.get("OPENROUTER_API_KEY_3", "")
-OPENROUTER_API_KEY_4 = os.environ.get("OPENROUTER_API_KEY_4", "")
-OPENROUTER_API_KEY_5 = os.environ.get("OPENROUTER_API_KEY_5", "")
-OPENROUTER_API_KEY_6 = os.environ.get("OPENROUTER_API_KEY_6", "")
+# OpenRouter — primary AI provider. Keys 1-13 for rotation across separate accounts.
+OPENROUTER_API_KEY   = os.environ.get("OPENROUTER_API_KEY", "")
+OPENROUTER_API_KEY_2  = os.environ.get("OPENROUTER_API_KEY_2", "")
+OPENROUTER_API_KEY_3  = os.environ.get("OPENROUTER_API_KEY_3", "")
+OPENROUTER_API_KEY_4  = os.environ.get("OPENROUTER_API_KEY_4", "")
+OPENROUTER_API_KEY_5  = os.environ.get("OPENROUTER_API_KEY_5", "")
+OPENROUTER_API_KEY_6  = os.environ.get("OPENROUTER_API_KEY_6", "")
+OPENROUTER_API_KEY_7  = os.environ.get("OPENROUTER_API_KEY_7", "")
+OPENROUTER_API_KEY_8  = os.environ.get("OPENROUTER_API_KEY_8", "")
+OPENROUTER_API_KEY_9  = os.environ.get("OPENROUTER_API_KEY_9", "")
+OPENROUTER_API_KEY_10 = os.environ.get("OPENROUTER_API_KEY_10", "")
+OPENROUTER_API_KEY_11 = os.environ.get("OPENROUTER_API_KEY_11", "")
+OPENROUTER_API_KEY_12 = os.environ.get("OPENROUTER_API_KEY_12", "")
+OPENROUTER_API_KEY_13 = os.environ.get("OPENROUTER_API_KEY_13", "")
 OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
 # Only clean (non-reasoning) models. Nemotron removed entirely — it always leaks thinking.
 OPENROUTER_FALLBACK_MODELS = [
@@ -156,6 +162,13 @@ class BotBrain:
             os.environ.get("OPENROUTER_API_KEY_4", ""),
             os.environ.get("OPENROUTER_API_KEY_5", ""),
             os.environ.get("OPENROUTER_API_KEY_6", ""),
+            os.environ.get("OPENROUTER_API_KEY_7", ""),
+            os.environ.get("OPENROUTER_API_KEY_8", ""),
+            os.environ.get("OPENROUTER_API_KEY_9", ""),
+            os.environ.get("OPENROUTER_API_KEY_10", ""),
+            os.environ.get("OPENROUTER_API_KEY_11", ""),
+            os.environ.get("OPENROUTER_API_KEY_12", ""),
+            os.environ.get("OPENROUTER_API_KEY_13", ""),
         ] if k]
         self.openrouter_key_index: int = 0
         self.openrouter_exhausted_keys: set = set()  # keys that returned 429 on ALL models today
