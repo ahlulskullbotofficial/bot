@@ -59,7 +59,6 @@ def _load_gemini_key():
     except Exception:
         pass
     return ""
-    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -78,25 +77,18 @@ BEHAVIOUR_PATTERNS = [
     ("value_error",      r"ValueError:",                                    "fix"),
     ("import_error",     r"ImportError:|ModuleNotFoundError:",              "fix"),
     ("os_error",         r"OSError:|FileNotFoundError:|PermissionError:",   "fix"),
-    # Soft / behavioural failures
-    ("ai_not_ready",     r"local AI is not ready|Check that Ollama",        "fix"),
-    ("ai_failed",        r"Local AI request failed|\[AI\] Request failed|\[AI\] make_ai_reply failed", "fix"),
+    # Soft / behavioural failures — only real Python bugs, not expected quota/network events
+    ("ai_failed",        r"\[AI\] Request failed|\[AI\] make_ai_reply failed", "fix"),
     ("voice_failed",     r"Voice reply generation failed",                  "fix"),
     ("db_locked",        r"database is locked",                             "fix"),
     ("db_error",         r"sqlite3\.",                                      "fix"),
     ("event_loop_err",   r"no running event loop|no current event loop",    "fix"),
     ("discord_error",    r"discord\.errors\.",                              "warn"),
-    ("rate_limited",     r"429 Too Many Requests",                          "warn"),
     ("command_notfound", r"CommandNotFound:",                               "warn"),
-    ("ollama_down",      r"Connection refused.*11434|urlopen error",        "fix"),
-    ("all_ai_down",      r"All AI providers unavailable",                   "warn"),
     ("unhandled_exc",    r"Ignoring exception in",                          "fix"),
     ("memory_fail",      r"Memory summarisation failed",                    "warn"),
-    ("vision_fail",      r"Local image analysis failed",                    "warn"),
     ("silent_failure",   r"\[SILENT_FAILURE\]",                             "fix"),
 ]
-
-# Pre-compile for speed
 COMPILED_PATTERNS = [
     (label, re.compile(pattern, re.I), severity)
     for label, pattern, severity in BEHAVIOUR_PATTERNS
@@ -159,38 +151,55 @@ def best_model():
 
 
 def ask_ai(model_info, prompt):
-    """Send a prompt to the best available AI and return the response."""
+    """Send a prompt to the best available AI and return the response. Retries once on failure."""
     if model_info is None:
         return ""
     backend, model_or_key = model_info
 
-    if backend == "gemini":
-        payload = json.dumps({
-            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": {"maxOutputTokens": 1000, "temperature": 0.05},
-        }).encode()
-        req = urllib.request.Request(
-            f"{GEMINI_URL_AUTOFIX}?key={model_or_key}",
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            return json.loads(resp.read())["candidates"][0]["content"]["parts"][0]["text"].strip()
+    for attempt in range(2):  # try twice
+        try:
+            if backend == "gemini":
+                # Try multiple Gemini models in case one is unavailable
+                gemini_models = [
+                    "gemini-3.6-flash", "gemini-3.5-flash",
+                    "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"
+                ]
+                for model_name in gemini_models:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={model_or_key}"
+                    payload = json.dumps({
+                        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                        "generationConfig": {"maxOutputTokens": 2000, "temperature": 0.05},
+                    }).encode()
+                    req = urllib.request.Request(url, data=payload,
+                                                 headers={"Content-Type": "application/json"}, method="POST")
+                    try:
+                        with urllib.request.urlopen(req, timeout=60) as resp:
+                            return json.loads(resp.read())["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    except urllib.error.HTTPError as e:
+                        if e.code == 404:
+                            continue  # try next model
+                        raise
+                log("[AutoFix] All Gemini models returned 404")
+                return ""
 
-    # Ollama backend
-    payload = json.dumps({
-        "model": model_or_key,
-        "messages": [{"role": "user", "content": prompt}],
-        "stream": False,
-        "options": {"num_predict": 1000, "temperature": 0.05},
-    }).encode()
-    req = urllib.request.Request(
-        OLLAMA_URL, data=payload,
-        headers={"Content-Type": "application/json"}, method="POST"
-    )
-    with urllib.request.urlopen(req, timeout=180) as resp:
-        return json.loads(resp.read())["message"]["content"].strip()
+            # Ollama backend
+            payload = json.dumps({
+                "model": model_or_key,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+                "options": {"num_predict": 2000, "temperature": 0.05},
+            }).encode()
+            req = urllib.request.Request(OLLAMA_URL, data=payload,
+                                         headers={"Content-Type": "application/json"}, method="POST")
+            with urllib.request.urlopen(req, timeout=180) as resp:
+                return json.loads(resp.read())["message"]["content"].strip()
+
+        except Exception as e:
+            log(f"[AutoFix] AI attempt {attempt + 1} failed: {e}")
+            if attempt == 0:
+                time.sleep(3)  # brief wait before retry
+
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +222,8 @@ def restore_backup(path):
 
 
 def apply_patch(patch_text):
-    """Apply <<<SEARCH>>>...<<<REPLACE>>>...<<<END>>> blocks."""
+    """Apply <<<SEARCH>>>...<<<REPLACE>>>...<<<END>>> blocks with syntax validation."""
+    import ast as _ast
     blocks = re.findall(
         r"<<<SEARCH>>>\n(.*?)\n<<<REPLACE>>>\n(.*?)\n<<<END>>>",
         patch_text, re.S
@@ -223,19 +233,36 @@ def apply_patch(patch_text):
         return False
 
     source = BOT_FILE.read_text(encoding="utf-8")
+    patched_source = source
     applied = 0
     for search, replace in blocks:
         s, r = search.strip(), replace.strip()
-        if s in source:
-            source = source.replace(s, r, 1)
+        if s in patched_source:
+            patched_source = patched_source.replace(s, r, 1)
             applied += 1
         else:
-            log(f"[AutoFix] Block not found (already fixed?): {s[:80]!r}")
+            # Try with normalised whitespace (trailing spaces)
+            s_norm = "\n".join(line.rstrip() for line in s.splitlines())
+            src_norm = "\n".join(line.rstrip() for line in patched_source.splitlines())
+            if s_norm in src_norm:
+                patched_source = patched_source.replace(s, r, 1)
+                applied += 1
+            else:
+                log(f"[AutoFix] Block not found (already fixed?): {s[:80]!r}")
 
-    if applied:
-        BOT_FILE.write_text(source, encoding="utf-8")
-        log(f"[AutoFix] {applied}/{len(blocks)} patch block(s) applied.")
-    return applied > 0
+    if not applied:
+        return False
+
+    # Validate the patched source parses as valid Python before writing
+    try:
+        _ast.parse(patched_source)
+    except SyntaxError as e:
+        log(f"[AutoFix] Patch rejected — introduces syntax error at line {e.lineno}: {e.msg}")
+        return False
+
+    BOT_FILE.write_text(patched_source, encoding="utf-8")
+    log(f"[AutoFix] {applied}/{len(blocks)} patch block(s) applied and syntax-validated.")
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -261,28 +288,39 @@ def build_fix_prompt(trigger_label, trigger_lines, recent_output):
     trigger_lines: the log lines that matched the problem pattern
     recent_output: last ~60 lines of bot output for context
     """
-    # Extract bot.py line references from the output
+    import sys as _sys
+    python_version = f"{_sys.version_info.major}.{_sys.version_info.minor}.{_sys.version_info.micro}"
+
+    # Extract bot.py line references from the output — get the LAST occurrence (most relevant)
     refs = re.findall(r'File "([^"]*bot\.py[^"]*)", line (\d+)', recent_output)
     code_sections = []
-    for _, ln in refs:
-        ctx = get_code_context(int(ln))
-        if ctx:
-            code_sections.append(f"Code near line {ln}:\n{ctx}")
+    seen_lines = set()
+    for _, ln in refs[-5:]:  # last 5 references only
+        ln_int = int(ln)
+        if ln_int not in seen_lines:
+            seen_lines.add(ln_int)
+            ctx = get_code_context(ln_int)
+            if ctx:
+                code_sections.append(f"Code near line {ln}:\n{ctx}")
 
-    # Also check if trigger lines themselves reference a line number
+    # Also check trigger lines for line references
     for tl in trigger_lines:
         m = re.search(r"line (\d+)", tl)
         if m:
-            ctx = get_code_context(int(m.group(1)))
-            if ctx and ctx not in "\n".join(code_sections):
-                code_sections.append(f"Code near line {m.group(1)}:\n{ctx}")
+            ln_int = int(m.group(1))
+            if ln_int not in seen_lines:
+                seen_lines.add(ln_int)
+                ctx = get_code_context(ln_int)
+                if ctx and ctx not in "\n".join(code_sections):
+                    code_sections.append(f"Code near line {m.group(1)}:\n{ctx}")
 
     code_ctx = "\n\n".join(code_sections) or "(no specific line referenced)"
 
+    # Use the LAST 4000 chars of output — the traceback is always at the end
     problem_block = "\n".join(trigger_lines)
-    context_block = recent_output[-3000:]  # last 3000 chars of output
+    context_block = recent_output[-4000:]
 
-    # Try to read brain's known_issues for extra context
+    # Brain state for extra context
     brain_context = ""
     try:
         brain_file = BOT_FILE.parent / "brain_state.txt"
@@ -291,33 +329,33 @@ def build_fix_prompt(trigger_label, trigger_lines, recent_output):
     except Exception:
         pass
 
-    return f"""You are an expert Python bot debugger. The Discord bot produced this problem:
+    return f"""You are an expert Python {python_version} Discord bot debugger. Fix this problem:
 
 === PROBLEM TYPE: {trigger_label.upper()} ===
 {problem_block}
 
 === RECENT BOT OUTPUT (last 60 lines) ===
 {context_block}
-
+{brain_context}
 === RELEVANT CODE IN bot.py ===
 {code_ctx}
 
-Your job: produce a minimal, safe fix for this specific problem.
+Your job: produce a minimal, safe fix.
 
 Rules:
-- Only fix the exact issue shown. Do not refactor anything else.
+- Only fix the exact issue. Do not refactor or change anything else.
 - Preserve all existing logic — only change what is broken.
-- Copy the SEARCH block character-for-character from the code above, including all spaces.
-- Output ONLY patch blocks in this format, nothing else:
+- The bot runs on Python {python_version} — use compatible syntax only.
+- Copy the SEARCH block character-for-character from the code above, preserving ALL whitespace and indentation.
+- Output ONLY patch blocks in this exact format:
 
 <<<SEARCH>>>
-exact original lines from bot.py (copy exactly, preserving indentation)
+exact original lines from bot.py (copy exactly, every space matters)
 <<<REPLACE>>>
 fixed replacement lines
 <<<END>>>
 
-Use multiple blocks if needed.
-If you cannot safely determine a fix, output exactly: CANNOT_FIX
+Use multiple blocks if needed. If you cannot safely fix this, output exactly: CANNOT_FIX
 """
 
 
@@ -456,9 +494,16 @@ def watch_files(proc_ref, stop_event):
 def attempt_fix(label, trigger_lines, recent_output, fix_attempt):
     log(f"[AutoFix] Problem detected: '{label}' (attempt {fix_attempt}/{MAX_FIX_ATTEMPTS})")
 
+    # Validate current source first — skip if already broken (previous bad patch)
+    try:
+        import ast as _ast
+        _ast.parse(BOT_FILE.read_text(encoding="utf-8"))
+    except SyntaxError as e:
+        log(f"[AutoFix] bot.py has a syntax error before fix (line {e.lineno}): {e.msg} — attempting repair anyway")
+
     model_info = best_model()
     if not model_info:
-        log("[AutoFix] No AI model available (no Ollama + no Groq key) — skipping fix.")
+        log("[AutoFix] No AI model available — skipping fix.")
         return False
 
     backend, _ = model_info
