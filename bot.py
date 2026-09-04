@@ -62,6 +62,11 @@ OPENROUTER_FALLBACK_MODELS = [
     "google/gemma-4-31b-it:free",
     "google/gemma-4-26b-a4b-it:free",
 ]
+# Google Gemini — free tier: 1500 requests/day, no thinking leaks, no account juggling.
+# Get key at: https://aistudio.google.com/apikey
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL   = "gemini-2.0-flash"   # fast, free, 1500 req/day
+GEMINI_URL     = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 # Models that properly support disabling thinking via extra_body params
 _THINKING_DISABLE_MODELS = {
     "google/gemma-4-31b-it:free",
@@ -1290,19 +1295,81 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
         return None
 
 
+async def _call_gemini_async(messages, max_tokens=160, temperature=0.8):
+    """
+    Call Google Gemini API directly — 1500 free requests/day, no thinking leaks.
+    Converts OpenAI-format messages to Gemini format.
+    """
+    import aiohttp
+    if not GEMINI_API_KEY:
+        return None
+
+    # Convert OpenAI message format to Gemini format
+    system_text = ""
+    contents = []
+    for msg in messages:
+        role = msg.get("role", "user")
+        content = msg.get("content", "")
+        if role == "system":
+            system_text += content + "\n"
+        elif role == "user":
+            contents.append({"role": "user", "parts": [{"text": content}]})
+        elif role == "assistant":
+            contents.append({"role": "model", "parts": [{"text": content}]})
+
+    if not contents:
+        contents.append({"role": "user", "parts": [{"text": "Hi"}]})
+
+    payload = {
+        "contents": contents,
+        "generationConfig": {
+            "maxOutputTokens": max_tokens,
+            "temperature": temperature,
+        },
+    }
+    if system_text.strip():
+        payload["systemInstruction"] = {"parts": [{"text": system_text.strip()}]}
+
+    url = f"{GEMINI_URL}?key={GEMINI_API_KEY}"
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
+            async with session.post(url, json=payload) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    result = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    result = _strip_thinking(result)
+                    if result:
+                        print(f"[AI] Gemini success", flush=True)
+                        brain.log_event("gemini", "reply_ok")
+                        return result
+                elif resp.status == 429:
+                    print(f"[AI] Gemini 429: quota hit", flush=True)
+                    brain.add_known_issue("Gemini daily quota hit")
+                else:
+                    body = await resp.text()
+                    print(f"[AI] Gemini HTTP {resp.status}: {body[:120]}", flush=True)
+    except Exception as e:
+        print(f"[AI] Gemini exception: {type(e).__name__}: {e}", flush=True)
+    return None
+
+
 async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
     """
-    Async AI caller using aiohttp.
-    - Tries clean (non-leaky) models first across all keys
-    - Tracks 429 quota hits separately from errors
-    - Once clean models are truly exhausted on all keys, returns a friendly message
-    - Never falls back to leaky reasoning models after clean models are spent
+    Async AI caller. Priority: Gemini (1500/day free) → OpenRouter gemma (50/day per key).
+    No reasoning models — no thinking leaks possible.
     """
     import aiohttp
 
+    # 1. Try Gemini first — 1500 free requests/day, clean replies, no thinking leaks
+    if GEMINI_API_KEY:
+        print("[AI] Trying Gemini...", flush=True)
+        result = await _call_gemini_async(messages, max_tokens, temperature)
+        if result:
+            return result
+
+    # 2. OpenRouter gemma fallback — used when Gemini quota is hit
     if not brain.openrouter_keys and not OPENROUTER_API_KEY:
-        print("[AI] OPENROUTER_API_KEY is not set!", flush=True)
-        return None
+        return "I'm having trouble reaching my AI right now — try again in a sec innit"
 
     headers_base = {
         "Content-Type": "application/json",
