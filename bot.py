@@ -649,7 +649,7 @@ def summarize_old_turns(user_id, channel_id):
     rolling plain-English summary using Ollama, then delete those raw turns.
     This means context from weeks ago is never lost - it is just compressed.
     """
-    if _get_conversation_count(user_id, channel_id) < 60:
+    if _get_conversation_count(user_id, channel_id) < 200:
         return
     old_turns = _load_oldest_turns(user_id, channel_id, limit=40)
     if not old_turns:
@@ -714,9 +714,8 @@ def recent_memory(user_id, channel_id):
 
 def _extract_facts_with_ai(content):
     """
-    Use Ollama to intelligently extract personal facts from a message.
-    Returns a list of (key, value, importance) tuples, or falls back to
-    regex if the AI call fails.
+    Extract personal facts using regex only — no AI call to preserve Gemini quota.
+    The regex fallback is fast, free, and good enough for most facts.
     """
     text = re.sub(r"\s+", " ", content).strip()
     if not text or len(text) < 8:
@@ -724,42 +723,7 @@ def _extract_facts_with_ai(content):
     blocked = ("password", "passcode", "api key", "token", "credit card", "bank account", "private key")
     if any(term in text.lower() for term in blocked):
         return []
-
-    prompt = (
-        "Extract personal facts about the user from this Discord message. "
-        "Return ONLY a JSON array of objects with keys: \"key\", \"value\", \"importance\" (1-5).\n"
-        "Importance guide: 5=name/explicit memory request, 4=religion/identity, 3=location/language/age, "
-        "2=hobby/preference/opinion, 1=casual mention.\n"
-        "Valid keys: name, age, location, language, religion, occupation, hobby, preference, "
-        "opinion, relationship, goal, explicit_memory, mood, topic_interest.\n"
-        "Rules: only extract clear facts, no guessing, return [] if nothing useful, "
-        "keep values under 120 characters, never extract passwords or secrets.\n\n"
-        f"Message: {text[:400]}\n\nJSON array only, no explanation:"
-    )
-    try:
-        messages = [{"role": "user", "content": prompt}]
-        raw = _call_ai(messages, max_tokens=200, temperature=0.0)
-        # Extract the JSON array from the response robustly
-        match = re.search(r"\[.*\]", raw, re.S)
-        if not match:
-            return []
-        facts_raw = json.loads(match.group())
-        facts = []
-        valid_keys = {
-            "name", "age", "location", "language", "religion", "occupation",
-            "hobby", "preference", "opinion", "relationship", "goal",
-            "explicit_memory", "mood", "topic_interest",
-        }
-        for item in facts_raw:
-            key = str(item.get("key", "")).strip().lower()
-            value = str(item.get("value", "")).strip()
-            importance = int(item.get("importance", 2))
-            if key in valid_keys and len(value) >= 2:
-                facts.append((key, value[:180], max(1, min(5, importance))))
-        return facts
-    except Exception:
-        # Fallback to regex if the AI call times out or returns garbage
-        return _extract_facts_regex(text)
+    return _extract_facts_regex(text)
 
 
 def _extract_facts_regex(text):
