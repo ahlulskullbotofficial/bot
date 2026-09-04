@@ -302,20 +302,23 @@ class BotBrain:
             self.openrouter_fail_reset_date = today
         self.openrouter_fail_counts[model] = self.openrouter_fail_counts.get(model, 0) + 1
 
-    def record_openrouter_quota_hit(self, model: str):
-        """Track a 429 quota hit — separate from general failures."""
+    def record_openrouter_quota_hit(self, model: str, key: str):
+        """Track a 429 quota hit per (model, key) pair.
+        Only marks a model exhausted when EVERY key has returned 429 for it."""
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         if self.openrouter_fail_reset_date != today:
             self.openrouter_fail_counts.clear()
             self.openrouter_quota_exhausted_models.clear()
             self.openrouter_fail_reset_date = today
-        hits = self.openrouter_fail_counts.get(f"429_{model}", 0) + 1
-        self.openrouter_fail_counts[f"429_{model}"] = hits
-        # After 2 consecutive 429s on a clean model = quota exhausted for today
-        # (trying 2 different keys and both 429 = definitely spent)
-        if hits >= 2:
+        # Track which specific keys have 429'd for this model
+        key_set = self.openrouter_fail_counts.get(f"429_keys_{model}", set())
+        key_set.add(key)
+        self.openrouter_fail_counts[f"429_keys_{model}"] = key_set
+        # Only exhaust model when every available key has returned 429
+        all_keys = set(self.openrouter_keys) if self.openrouter_keys else {key}
+        if all_keys and key_set >= all_keys:
             self.openrouter_quota_exhausted_models.add(model)
-            print(f"[Brain] Model quota exhausted for today: {model}", flush=True)
+            print(f"[Brain] Model quota exhausted on all keys: {model}", flush=True)
 
     def is_model_quota_exhausted(self, model: str) -> bool:
         """Return True if this model has hit 429 on all available keys today."""
@@ -1352,7 +1355,7 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
                             all_429 = False
                         elif resp.status == 429:
                             print(f"[AI] OpenRouter 429 ({or_model}): quota hit", flush=True)
-                            brain.record_openrouter_quota_hit(or_model)
+                            brain.record_openrouter_quota_hit(or_model, current_key)
                             # Don't set all_429=False — 429 counts toward key exhaustion
                         else:
                             body = await resp.text()
