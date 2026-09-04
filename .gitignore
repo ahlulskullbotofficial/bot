@@ -21,3 +21,13 @@ bot_log.txt
 *.mp3
 *.ogg
 *.wav
+# Old bot backups
+bot.py.before_*
+# Runtime files
+brain_state.txt
+.cmd_hash
+.watchdog.pid
+watchdog_log.txt
+# SQLite WAL files
+*.sqlite3-shm
+*.sqlite3-wal

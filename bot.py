@@ -1407,13 +1407,7 @@ async def _call_ai_async(messages, max_tokens=400, temperature=0.8):
         # Still have keys left — tell user to try again (next request will use next key)
         return "Having a blip reaching my AI — try again in a sec yeah 🔄"
 
-    # Ollama local fallback (only runs if non-429 failure)
-    if brain.ollama_alive and _ollama_ping():
-        try:
-            return await asyncio.to_thread(_call_ai, messages, max_tokens, temperature)
-        except Exception:
-            pass
-
+    # Gemini handles everything — no Ollama fallback needed on server
     print("[AI] All providers failed.", flush=True)
     return "I'm having trouble reaching my AI right now — try again in a sec innit"
 
@@ -2465,7 +2459,9 @@ async def _answer_with_ai_inner(message, stripped_content):
             print(f"[Reply sent] Text to {message.author.display_name}")
             return
         if not image_description.startswith("["):
-            remember_image_context(message.author.id, guild_id, image_description)
+            asyncio.get_running_loop().run_in_executor(
+                None, remember_image_context, message.author.id, guild_id, image_description
+            )
         user_message += (
             "\n\nVisual analysis (authoritative; do not contradict or invent extra objects):\n"
             + image_description
@@ -2483,24 +2479,26 @@ async def _answer_with_ai_inner(message, stripped_content):
         member_memory_context, message.author.id, guild_id, message.author.display_name
     )
 
-    # Inject recent channel context — last 15 messages from the channel so the bot
-    # knows what others were talking about, not just its own conversation history.
+    # Inject recent channel context — last 15 messages so bot knows what others said.
+    # Only in guild channels; DMs don't need this (same user only).
     try:
         channel_ctx_msgs = []
-        async for msg in message.channel.history(limit=20, before=message):
-            if msg.author.bot:
-                continue
-            name = msg.author.display_name
-            content = msg.content.strip()[:120]  # keep each message short
-            if content:
-                channel_ctx_msgs.append(f"{name}: {content}")
-            if len(channel_ctx_msgs) >= 15:
-                break
+        if message.guild and hasattr(message.channel, 'history'):
+            async for msg in message.channel.history(limit=20, before=message):
+                if msg.author.bot:
+                    continue
+                name = msg.author.display_name
+                content = msg.content.strip()[:120]
+                if content:
+                    channel_ctx_msgs.append(f"{name}: {content}")
+                if len(channel_ctx_msgs) >= 15:
+                    break
         if channel_ctx_msgs:
             channel_ctx_msgs.reverse()  # oldest first
             channel_context = "\n".join(channel_ctx_msgs)
             member_context = member_context + f"\n\n[Recent channel messages for context:\n{channel_context}]"
     except Exception:
+        pass
         pass  # never block a reply over context fetching
 
     # Detect emotional voice requests early so we can prime the AI properly.
@@ -2582,8 +2580,10 @@ async def _answer_with_ai_inner(message, stripped_content):
 
 async def _send_reply(message, text: str):
     """Send a reply, splitting into multiple messages if over Discord's 2000-char limit."""
-    text = _strip_action_tags(text)
     if not text:
+        return
+    text = _strip_action_tags(text)
+    if not text or not text.strip():
         return
     # Split on sentence boundaries to avoid mid-word cuts
     chunks = []
@@ -2752,11 +2752,13 @@ async def ollama_health_check():
 
 @tasks.loop(minutes=60)
 async def openrouter_quota_reset_check():
-    """Every hour check if it's past midnight UTC — if so, re-enable all exhausted keys."""
-    if brain.openrouter_exhausted_keys:
-        now_utc = datetime.now(timezone.utc)
-        if now_utc.hour == 0:  # midnight UTC = OpenRouter quota reset time
-            brain.reset_openrouter_keys()
+    """Every hour check if it's past midnight UTC — reset all quota tracking for the new day."""
+    now_utc = datetime.now(timezone.utc)
+    if now_utc.hour == 0:
+        brain.reset_openrouter_keys()
+        # Also reset Gemini quota flag so bot retries Gemini after midnight
+        brain.resolve_issue("Gemini daily quota hit")
+        print("[Brain] Daily quota reset — Gemini and OpenRouter re-enabled", flush=True)
 
 
 @tasks.loop(minutes=5)
