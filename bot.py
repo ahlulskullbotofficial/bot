@@ -65,7 +65,7 @@ OPENROUTER_FALLBACK_MODELS = [
 # Google Gemini — free tier: 1500 requests/day, no thinking leaks, no account juggling.
 # Get key at: https://aistudio.google.com/apikey
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL   = "gemini-2.5-flash"   # fast, free, 1500 req/day
+GEMINI_MODEL   = "gemini-2.0-flash-lite"   # free tier, available to new users
 GEMINI_URL     = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 # Models that properly support disabling thinking via extra_body params
 _THINKING_DISABLE_MODELS = {
@@ -1297,14 +1297,13 @@ def _call_ai(messages, max_tokens=160, temperature=0.8):
 
 async def _call_gemini_async(messages, max_tokens=160, temperature=0.8):
     """
-    Call Google Gemini API directly — 1500 free requests/day, no thinking leaks.
-    Returns the reply string, or None if failed.
+    Call Google Gemini API.
+    Returns: reply string on success, "QUOTA" on 429, None on hard error.
     """
     import aiohttp
     if not GEMINI_API_KEY:
         return None
 
-    # Convert OpenAI message format to Gemini format
     system_text = ""
     contents = []
     for msg in messages:
@@ -1322,10 +1321,7 @@ async def _call_gemini_async(messages, max_tokens=160, temperature=0.8):
 
     payload = {
         "contents": contents,
-        "generationConfig": {
-            "maxOutputTokens": max_tokens,
-            "temperature": temperature,
-        },
+        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": temperature},
     }
     if system_text.strip():
         payload["systemInstruction"] = {"parts": [{"text": system_text.strip()}]}
@@ -1343,14 +1339,12 @@ async def _call_gemini_async(messages, max_tokens=160, temperature=0.8):
                         brain.log_event("gemini", "reply_ok")
                         return result
                 elif resp.status == 429:
-                    print(f"[AI] Gemini 429: daily quota hit", flush=True)
-                    brain.add_known_issue("Gemini daily quota hit")
+                    print(f"[AI] Gemini 429: daily quota hit — falling back to OpenRouter", flush=True)
+                    return "QUOTA"  # sentinel: quota hit, try OpenRouter
                 else:
                     body = await resp.text()
                     print(f"[AI] Gemini HTTP {resp.status}: {body[:120]}", flush=True)
-                    # Hard error — update the model URL if 404
-                    if resp.status == 404:
-                        brain.add_known_issue(f"Gemini model not found — update GEMINI_MODEL in bot.py")
+                    return None  # hard error — don't waste OpenRouter keys
     except Exception as e:
         print(f"[AI] Gemini exception: {type(e).__name__}: {e}", flush=True)
     return None
@@ -1366,11 +1360,13 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
     # 1. Try Gemini first — 1500 free requests/day, clean replies, no thinking leaks
     if GEMINI_API_KEY:
         print("[AI] Trying Gemini...", flush=True)
-        result = await _call_gemini_async(messages, max_tokens, temperature)
-        if result:
-            return result
-        # If Gemini returned None due to a hard error (404, bad key), don't waste
-        # OpenRouter keys — log and fall through. If it's just quota (429), same.
+        gemini_result = await _call_gemini_async(messages, max_tokens, temperature)
+        if gemini_result and gemini_result != "QUOTA":
+            return gemini_result  # success
+        if gemini_result is None:
+            # Hard error (404, bad key, exception) — don't waste OpenRouter keys
+            return "I'm having trouble reaching my AI right now — try again in a sec innit"
+        # gemini_result == "QUOTA" — fall through to OpenRouter
 
     # 2. OpenRouter gemma fallback — used when Gemini quota is hit
     if not brain.openrouter_keys and not OPENROUTER_API_KEY:
