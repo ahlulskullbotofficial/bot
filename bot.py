@@ -1227,65 +1227,58 @@ def _looks_like_fragment(text: str) -> bool:
 
 def _call_ai(messages, max_tokens=400, temperature=0.8):
     """
-    Sync AI caller for use in threads (summarisation, fact extraction).
-    For the main reply path use _call_ai_async instead.
-    OpenRouter only — Groq removed, Ollama local fallback.
+    Sync AI caller for background threads (summarisation, fact extraction).
+    Uses Gemini via urllib — no aiohttp needed in a thread context.
     """
-    def _try_openrouter_with_key(model, key):
-        payload = json.dumps({
-            "model": model,
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            OPENROUTER_URL, data=payload,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {key}",
-                "HTTP-Referer": "https://github.com",
-                "X-Title": "AhlulSkullBot",
-            },
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=10) as response:
-            result = json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"].strip()
-            return _strip_thinking(result)
-
-    if not OPENROUTER_API_KEY:
-        print("[AI] OPENROUTER_API_KEY is not set — cannot call OpenRouter", flush=True)
-    else:
-        ordered_models = brain.best_openrouter_order(OPENROUTER_FALLBACK_MODELS)
-        active_key = brain.active_openrouter_key() or OPENROUTER_API_KEY
-        for or_model in ordered_models:
-            try:
-                result = _try_openrouter_with_key(or_model, active_key)
-                if result:
-                    brain.record_openrouter_success(or_model)
-                    return result
-            except Exception as e:
-                print(f"[AI][sync] OpenRouter failed ({or_model}): {type(e).__name__}: {e}", flush=True)
-                brain.record_openrouter_failure(or_model)
-                continue
-
-    # Ollama local fallback
-    if not _ollama_ping():
+    if not GEMINI_API_KEY:
         return None
-    payload = json.dumps({
-        "model": OLLAMA_MODEL,
-        "messages": messages,
-        "stream": False,
-        "options": {"num_predict": max_tokens, "temperature": temperature},
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        OLLAMA_URL, data=payload,
-        headers={"Content-Type": "application/json"}, method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=60) as response:
-            return json.loads(response.read().decode("utf-8"))["message"]["content"].strip()
-    except urllib.error.URLError:
-        return None
+
+    # Convert OpenAI message format to Gemini format
+    system_text = ""
+    contents = []
+    for msg in messages:
+        role = msg.get("role", "user")
+        content = msg.get("content", "")
+        if role == "system":
+            system_text += content + "\n"
+        elif role == "user":
+            contents.append({"role": "user", "parts": [{"text": content}]})
+        elif role == "assistant":
+            contents.append({"role": "model", "parts": [{"text": content}]})
+    if not contents:
+        contents.append({"role": "user", "parts": [{"text": "Hi"}]})
+
+    payload_dict = {
+        "contents": contents,
+        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": temperature},
+    }
+    if system_text.strip():
+        payload_dict["systemInstruction"] = {"parts": [{"text": system_text.strip()}]}
+
+    for model in GEMINI_FALLBACK_MODELS:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+        try:
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload_dict).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+                text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+                if text:
+                    return _strip_thinking(text)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                continue  # try next model
+            print(f"[AI][sync] Gemini HTTP {e.code} ({model})", flush=True)
+            return None
+        except Exception as e:
+            print(f"[AI][sync] Gemini failed ({model}): {type(e).__name__}: {e}", flush=True)
+            continue
+
+    return None
 
 
 async def _call_gemini_async(messages, max_tokens=400, temperature=0.8):
@@ -2505,6 +2498,24 @@ async def _answer_with_ai_inner(message, stripped_content):
         member_memory_context, message.author.id, guild_id, message.author.display_name
     )
 
+    # Inject recent channel context — last 6 messages from the channel so the bot
+    # knows what others were talking about, not just its own conversation history.
+    try:
+        channel_ctx_msgs = []
+        async for msg in message.channel.history(limit=8, before=message):
+            if msg.author.bot:
+                continue
+            name = msg.author.display_name
+            content = msg.content.strip()[:200]
+            if content:
+                channel_ctx_msgs.append(f"{name}: {content}")
+        if channel_ctx_msgs:
+            channel_ctx_msgs.reverse()  # oldest first
+            channel_context = "\n".join(channel_ctx_msgs)
+            member_context = member_context + f"\n\n[Recent channel messages for context:\n{channel_context}]"
+    except Exception:
+        pass  # never block a reply over context fetching
+
     # Detect emotional voice requests early so we can prime the AI properly.
     voice_emotion_hint = None
     if requests_voice_reply(user_message):
@@ -2528,7 +2539,7 @@ async def _answer_with_ai_inner(message, stripped_content):
     try:
         async with message.channel.typing():
             reply = await make_ai_reply(history, ai_user_message, member_context, bool(image_description), message.author.id)
-        reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
+        reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")
         # Validate reply — regenerate on system errors, empty replies, image errors, or leaked fragments
         # But never regen the quota message — it's intentional
         _QUOTA_MSG = "daily AI limit"
@@ -2539,7 +2550,7 @@ async def _answer_with_ai_inner(message, stripped_content):
                 async with message.channel.typing():
                     regen = await make_ai_reply(history, safe_prompt, member_context, False, message.author.id)
                 if regen and regen.strip() and _QUOTA_MSG not in regen:
-                    reply = regen[:1900]
+                    reply = regen
             except Exception:
                 pass
     except Exception as error:
@@ -2550,12 +2561,12 @@ async def _answer_with_ai_inner(message, stripped_content):
         try:
             async with message.channel.typing():
                 reply = await make_ai_reply(history, ai_user_message, member_context, bool(image_description), message.author.id)
-            reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
+            reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")
         except Exception:
             await message.reply("Try again in a sec.", mention_author=False)
             print(f"[Reply sent] Fallback to {message.author.display_name}")
             return
-    reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")[:1900]
+    reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")
     await asyncio.to_thread(remember, message.author.id, message.channel.id, "user", user_message)
     await asyncio.to_thread(remember, message.author.id, message.channel.id, "assistant", reply)
     asyncio.get_running_loop().run_in_executor(
@@ -2568,21 +2579,55 @@ async def _answer_with_ai_inner(message, stripped_content):
             return
         except RuntimeError as error:
             print(f"Voice reply runtime error: {error}")
-            await message.reply(
-                _strip_action_tags(reply) + "\n\n*Voice replies need `py -m pip install edge-tts` once, then a restart.*",
-                mention_author=False,
-            )
+            await _send_reply(message, reply + "\n\n*Voice replies need `py -m pip install edge-tts` once, then a restart.*")
             print(f"[Reply sent] Text to {message.author.display_name}")
             return
         except Exception as error:
             print(f"Voice reply generation failed (full error): {type(error).__name__}: {error}")
             traceback.print_exc()
-            await message.reply(_strip_action_tags(reply), mention_author=False)
+            await _send_reply(message, reply)
             print(f"[Reply sent] Text to {message.author.display_name}")
             return
-    await message.reply(_strip_action_tags(reply), mention_author=False)
+    await _send_reply(message, reply)
     brain.update_user_state(message.author.id, last_reply_sent=datetime.now(timezone.utc))
     print(f"[Reply sent] Text to {message.author.display_name}")
+
+
+async def _send_reply(message, text: str):
+    """Send a reply, splitting into multiple messages if over Discord's 2000-char limit."""
+    text = _strip_action_tags(text)
+    if not text:
+        return
+    # Split on sentence boundaries to avoid mid-word cuts
+    chunks = []
+    while len(text) > 1900:
+        # Find last sentence end or newline before 1900
+        cut = max(
+            text.rfind('\n', 0, 1900),
+            text.rfind('. ', 0, 1900),
+            text.rfind('! ', 0, 1900),
+            text.rfind('? ', 0, 1900),
+        )
+        if cut < 800:  # no good split point, cut at word boundary
+            cut = text.rfind(' ', 0, 1900)
+        if cut < 1:
+            cut = 1900
+        else:
+            cut += 1  # include the punctuation
+        chunks.append(text[:cut].strip())
+        text = text[cut:].strip()
+    if text:
+        chunks.append(text)
+    # Send first chunk as reply, rest as follow-up messages
+    first = True
+    for chunk in chunks:
+        if not chunk:
+            continue
+        if first:
+            await message.reply(chunk, mention_author=False)
+            first = False
+        else:
+            await message.channel.send(chunk)
 
 
 @tasks.loop(seconds=30)
