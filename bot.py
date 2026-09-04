@@ -1631,7 +1631,7 @@ async def describe_image_gemini(image_bytes: bytes, caption: str) -> str:
                 {"inline_data": {"mime_type": "image/jpeg", "data": image_b64}},
             ],
         }],
-        "generationConfig": {"maxOutputTokens": 200, "temperature": 0.1},
+        "generationConfig": {"maxOutputTokens": 600, "temperature": 0.1},
     }
 
     for model in GEMINI_FALLBACK_MODELS:
@@ -1643,6 +1643,7 @@ async def describe_image_gemini(image_bytes: bytes, caption: str) -> str:
                         data = await resp.json()
                         result = data["candidates"][0]["content"]["parts"][0]["text"].strip()
                         if result:
+                            print(f"[Vision] Gemini described image: {result[:80]}...", flush=True)
                             if flag_note:
                                 result += "\n" + flag_note
                             return result
