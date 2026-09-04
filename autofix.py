@@ -82,7 +82,7 @@ BEHAVIOUR_PATTERNS = [
     ("os_error",         r"OSError:|FileNotFoundError:|PermissionError:",   "fix"),
     # Soft / behavioural failures
     ("ai_not_ready",     r"local AI is not ready|Check that Ollama",        "fix"),
-    ("ai_failed",        r"Local AI request failed|\[AI\].*failed",         "fix"),
+    ("ai_failed",        r"Local AI request failed|\[AI\] Request failed|\[AI\] make_ai_reply failed", "fix"),
     ("voice_failed",     r"Voice reply generation failed",                  "fix"),
     ("db_locked",        r"database is locked",                             "fix"),
     ("db_error",         r"sqlite3\.",                                      "fix"),
@@ -351,6 +351,12 @@ class BehaviourMonitor:
             "HTTP Error 403",
             "Connection refused",
             "429 Too Many Requests",
+            "[AI][sync]",          # background fact extraction / summarisation — not a reply failure
+            "quota hit",           # expected when OpenRouter free tier runs out
+            "OpenRouter 429",      # same
+            "OpenRouter failed",   # transient network error, not a code bug
+            "HTTPError: HTTP Error 429",
+            "Clean models quota-exhausted",
         ]
         if any(phrase in line for phrase in ignorable):
             return None
