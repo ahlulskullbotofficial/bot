@@ -417,6 +417,7 @@ personal rulings. Use phrases such as insha Allah or alhamdulillah only when
 they fit naturally. Never claim to be Muslim or speak on behalf of Islam.
 Default to one short sentence (around 160 characters or less). Only give more
 detail when the user explicitly asks for it or it is necessary for accuracy.
+You can search the web for current information when needed — use it naturally.
 If the user message includes Visual analysis, that is the only source of truth
 for what is in the picture or GIF. Repeat the actual objects, text, and scene
 from that analysis. Never invent a different country, flag, animal, person, or
@@ -1606,6 +1607,63 @@ def describe_image(image_bytes, caption):
     return description
 
 
+async def describe_image_gemini(image_bytes: bytes, caption: str) -> str:
+    """Use Gemini's vision capability to describe an image/GIF — works on the server."""
+    import aiohttp
+    if not GEMINI_API_KEY:
+        return ""
+
+    jpeg_bytes = prepare_vision_jpeg(image_bytes)
+    flag_note = identify_flag(jpeg_bytes)
+    prompt = (
+        "Look at this image. Describe only what is visibly there: "
+        "main subject, setting, colours, any readable text, and whether it is a photo, "
+        "screenshot, meme, cartoon, or flag. Do not invent objects, people, animals, or countries. "
+        "If you cannot tell, say you are unsure. Keep it under 80 words."
+    )
+    if flag_note:
+        prompt += " Colour-layout hint (only relevant if this is a flag): " + flag_note
+    if caption and caption not in {
+        "Reply briefly to the message above.",
+        "What is in this image? Describe it accurately.",
+    }:
+        prompt += f" Caption from user: {caption[:300]}"
+
+    image_b64 = base64.b64encode(jpeg_bytes).decode("ascii")
+    payload = {
+        "contents": [{
+            "role": "user",
+            "parts": [
+                {"text": prompt},
+                {"inline_data": {"mime_type": "image/jpeg", "data": image_b64}},
+            ],
+        }],
+        "generationConfig": {"maxOutputTokens": 200, "temperature": 0.1},
+    }
+
+    for model in GEMINI_FALLBACK_MODELS:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
+                async with session.post(url, json=payload) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        result = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                        if result:
+                            if flag_note:
+                                result += "\n" + flag_note
+                            return result
+                    elif resp.status == 404:
+                        continue  # try next model
+                    else:
+                        print(f"[Vision] Gemini HTTP {resp.status}", flush=True)
+                        return ""
+        except Exception as e:
+            print(f"[Vision] Gemini exception: {type(e).__name__}: {e}", flush=True)
+            continue
+    return ""
+
+
 def is_visual_attachment(attachment):
     content_type = (attachment.content_type or "").lower()
     suffix = Path(attachment.filename or "").suffix.lower()
@@ -1713,11 +1771,31 @@ async def analyse_visual_attachments(message, caption):
     if not sources:
         return ""  # no image — skip everything
 
-    # There IS an image — now check if Ollama can handle it
-    # Skip the ping entirely if brain already knows Ollama is down (saves 3s on server)
+    # There IS an image — check if Ollama can handle it, otherwise use Gemini
     if _ollama_was_down or (not brain.ollama_alive):
+        # Try Gemini vision instead of Ollama
+        if GEMINI_API_KEY:
+            for source_type, source in sources[:4]:
+                try:
+                    image_bytes = await read_visual_bytes(source_type, source)
+                    if image_bytes:
+                        result = await describe_image_gemini(image_bytes, caption)
+                        if result:
+                            return result
+                except Exception as error:
+                    print(f"[Vision] Gemini vision failed: {error}")
         return "[Image attached; vision analysis is only available when running locally with Ollama.]"
     if not await asyncio.to_thread(_ollama_ping):
+        if GEMINI_API_KEY:
+            for source_type, source in sources[:4]:
+                try:
+                    image_bytes = await read_visual_bytes(source_type, source)
+                    if image_bytes:
+                        result = await describe_image_gemini(image_bytes, caption)
+                        if result:
+                            return result
+                except Exception as error:
+                    print(f"[Vision] Gemini vision failed: {error}")
         return "[Image attached; vision analysis is only available when running locally with Ollama.]"
     last_failure = "[Image attached; it could not be analysed locally.]"
     for source_type, source in sources[:4]:
