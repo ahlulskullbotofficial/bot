@@ -311,8 +311,9 @@ class BotBrain:
             self.openrouter_fail_reset_date = today
         hits = self.openrouter_fail_counts.get(f"429_{model}", 0) + 1
         self.openrouter_fail_counts[f"429_{model}"] = hits
-        # After hitting 429 on this model across all keys, it's truly exhausted
-        if hits >= len(self.openrouter_keys):
+        # After 2 consecutive 429s on a clean model = quota exhausted for today
+        # (trying 2 different keys and both 429 = definitely spent)
+        if hits >= 2:
             self.openrouter_quota_exhausted_models.add(model)
             print(f"[Brain] Model quota exhausted for today: {model}", flush=True)
 
