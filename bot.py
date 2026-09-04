@@ -1307,72 +1307,62 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
         print("[AI] All models quota-exhausted — daily limit hit", flush=True)
         return "Yo, I've hit my daily AI limit 😮‍💨 Come back after midnight UTC and I'll be fully loaded again innit 🕛"
 
-    models_to_try = clean_available
+    # Use only the current active key — do NOT rotate through all keys in one request.
+    # Key rotation happens across requests via mark_openrouter_key_exhausted.
+    current_key = brain.active_openrouter_key()
+    if not current_key:
+        return "Yo, I've hit my daily AI limit 😮‍💨 Come back after midnight UTC and I'll be fully loaded again innit 🕛"
 
-    tried_keys: set = set()
+    all_429 = True
+    for or_model in clean_available:
+        payload = {
+            "model": or_model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "include_reasoning": False,
+        }
+        if or_model in _THINKING_DISABLE_MODELS:
+            payload["extra_body"] = {"thinking": {"type": "disabled"}}
 
-    while True:
-        current_key = brain.active_openrouter_key()
-        if not current_key or current_key in tried_keys:
-            break
-        tried_keys.add(current_key)
+        headers = {**headers_base, "Authorization": f"Bearer {current_key}"}
+        try:
+            print(f"[AI] Trying OpenRouter ({or_model})...", flush=True)
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
+                async with session.post(OPENROUTER_URL, json=payload, headers=headers) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        result = (data["choices"][0]["message"].get("content") or "").strip()
+                        result = _strip_thinking(result)
+                        if result:
+                            brain.record_openrouter_success(or_model)
+                            print(f"[AI] OpenRouter success ({or_model})", flush=True)
+                            return result
+                        print(f"[AI] Empty after stripping ({or_model}), trying next...", flush=True)
+                        all_429 = False
+                    elif resp.status == 429:
+                        print(f"[AI] OpenRouter 429 ({or_model}): quota hit on current key", flush=True)
+                        brain.record_openrouter_quota_hit(or_model, current_key)
+                    else:
+                        body = await resp.text()
+                        print(f"[AI] OpenRouter HTTP {resp.status} ({or_model}): {body[:120]}", flush=True)
+                        brain.record_openrouter_failure(or_model)
+                        all_429 = False
+        except Exception as e:
+            print(f"[AI] OpenRouter exception ({or_model}): {type(e).__name__}: {e}", flush=True)
+            brain.record_openrouter_failure(or_model)
+            all_429 = False
 
-        all_429 = True
-        for or_model in models_to_try:
-            # Skip if this model is quota-exhausted on all keys
-            if brain.is_model_quota_exhausted(or_model):
-                continue
-
-            payload = {
-                "model": or_model,
-                "messages": messages,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "include_reasoning": False,
-            }
-            if or_model in _THINKING_DISABLE_MODELS:
-                payload["extra_body"] = {"thinking": {"type": "disabled"}}
-
-            headers = {**headers_base, "Authorization": f"Bearer {current_key}"}
-            try:
-                print(f"[AI] Trying OpenRouter ({or_model})...", flush=True)
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
-                    async with session.post(OPENROUTER_URL, json=payload, headers=headers) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            result = (data["choices"][0]["message"].get("content") or "").strip()
-                            result = _strip_thinking(result)
-                            if result:
-                                brain.record_openrouter_success(or_model)
-                                print(f"[AI] OpenRouter success ({or_model})", flush=True)
-                                return result
-                            print(f"[AI] Empty after stripping ({or_model}), trying next...", flush=True)
-                            all_429 = False
-                        elif resp.status == 429:
-                            print(f"[AI] OpenRouter 429 ({or_model}): quota hit", flush=True)
-                            brain.record_openrouter_quota_hit(or_model, current_key)
-                            # Don't set all_429=False — 429 counts toward key exhaustion
-                        else:
-                            body = await resp.text()
-                            print(f"[AI] OpenRouter HTTP {resp.status} ({or_model}): {body[:120]}", flush=True)
-                            brain.record_openrouter_failure(or_model)
-                            all_429 = False
-            except Exception as e:
-                print(f"[AI] OpenRouter exception ({or_model}): {type(e).__name__}: {e}", flush=True)
-                brain.record_openrouter_failure(or_model)
-                all_429 = False
-
-        # If every model on this key returned 429, the key is exhausted — rotate
-        non_exhausted = [m for m in models_to_try if not brain.is_model_quota_exhausted(m)]
-        if all_429 and non_exhausted:
-            brain.mark_openrouter_key_exhausted(current_key)
-
-        # Re-check — if all models now exhausted, return quota message
+    # If every model 429'd on this key, rotate for the NEXT request
+    if all_429:
+        brain.mark_openrouter_key_exhausted(current_key)
+        # Check if any model is truly exhausted across all keys
         if not [m for m in _CLEAN_MODELS if not brain.is_model_quota_exhausted(m)]:
-            print("[AI] All models now quota-exhausted — stopping", flush=True)
             return "Yo, I've hit my daily AI limit 😮‍💨 Come back after midnight UTC and I'll be fully loaded again innit 🕛"
+        # Still have keys left — tell user to try again (next request will use next key)
+        return "Having a blip reaching my AI — try again in a sec yeah 🔄"
 
-    # Ollama local fallback
+    # Ollama local fallback (only runs if non-429 failure)
     if brain.ollama_alive and _ollama_ping():
         try:
             return await asyncio.to_thread(_call_ai, messages, max_tokens, temperature)
@@ -1380,8 +1370,8 @@ async def _call_ai_async(messages, max_tokens=160, temperature=0.8):
             pass
 
     print("[AI] All providers failed.", flush=True)
-    # Return a clear message so users know what's happening
     return "I'm having trouble reaching my AI right now — try again in a sec innit"
+
 
 
 async def make_ai_reply(history, user_message, member_context, visual=False, user_id=None):
