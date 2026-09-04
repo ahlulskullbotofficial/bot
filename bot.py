@@ -2498,7 +2498,7 @@ async def _answer_with_ai_inner(message, stripped_content):
         member_memory_context, message.author.id, guild_id, message.author.display_name
     )
 
-    # Inject recent channel context — last 6 messages from the channel so the bot
+    # Inject recent channel context — last 15 messages from the channel so the bot
     # knows what others were talking about, not just its own conversation history.
     try:
         channel_ctx_msgs = []
@@ -2506,7 +2506,7 @@ async def _answer_with_ai_inner(message, stripped_content):
             if msg.author.bot:
                 continue
             name = msg.author.display_name
-            content = msg.content.strip()[:200]
+            content = msg.content.strip()[:120]  # keep each message short
             if content:
                 channel_ctx_msgs.append(f"{name}: {content}")
             if len(channel_ctx_msgs) >= 15:
