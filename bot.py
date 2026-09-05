@@ -1229,7 +1229,34 @@ def _call_ai(messages, max_tokens=400, temperature=0.8):
     return None
 
 
-async def _call_gemini_async(messages, max_tokens=400, temperature=0.8):
+def _quota_reset_message() -> str:
+    """Build a friendly quota message showing the exact reset time in multiple timezones."""
+    now = datetime.now(timezone.utc)
+    # Reset is always at midnight UTC
+    tomorrow_midnight_utc = (now + timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    hours_left = int((tomorrow_midnight_utc - now).total_seconds() // 3600)
+    mins_left = int(((tomorrow_midnight_utc - now).total_seconds() % 3600) // 60)
+    time_left = f"{hours_left}h {mins_left}m" if hours_left > 0 else f"{mins_left}m"
+
+    # Key timezones for the server's likely audience
+    zones = [
+        ("🇬🇧 London",  0 if (now.month < 3 or now.month > 10) else 1),   # GMT/BST approx
+        ("🇩🇿 Algiers", 1),    # CET always
+        ("🇸🇦 Riyadh",  3),    # AST always
+        ("🇺🇸 New York", -5 if (now.month < 3 or now.month > 11) else -4),  # EST/EDT approx
+    ]
+    zone_lines = []
+    for label, offset in zones:
+        reset_local = tomorrow_midnight_utc + timedelta(hours=offset)
+        zone_lines.append(f"{label}: **{reset_local.strftime('%H:%M')}**")
+
+    return (
+        f"Yo, I've hit my daily AI limit 😮‍💨\n"
+        f"I'll be back in **{time_left}** — reset times:\n"
+        + "\n".join(zone_lines)
+    )
     """
     Call Google Gemini API. Tries GEMINI_FALLBACK_MODELS in order until one works.
     Returns: reply string on success, "QUOTA" on 429, None on hard error.
@@ -1316,7 +1343,7 @@ async def _call_ai_async(messages, max_tokens=400, temperature=0.8):
         )
         if not or_has_capacity:
             print("[AI] Gemini quota hit and OpenRouter exhausted — daily limit", flush=True)
-            return "Yo, I've hit my daily AI limit 😮‍💨 Come back after midnight UTC and I'll be fully loaded again innit 🕛"
+            return _quota_reset_message()
 
     # 2. OpenRouter gemma fallback — used when Gemini quota is hit
     if not brain.openrouter_keys and not OPENROUTER_API_KEY:
@@ -1336,13 +1363,13 @@ async def _call_ai_async(messages, max_tokens=400, temperature=0.8):
     # If all clean models are quota-exhausted, tell the user
     if not clean_available:
         print("[AI] All models quota-exhausted — daily limit hit", flush=True)
-        return "Yo, I've hit my daily AI limit 😮‍💨 Come back after midnight UTC and I'll be fully loaded again innit 🕛"
+        return _quota_reset_message()
 
     # Use only the current active key — do NOT rotate through all keys in one request.
     # Key rotation happens across requests via mark_openrouter_key_exhausted.
     current_key = brain.active_openrouter_key()
     if not current_key:
-        return "Yo, I've hit my daily AI limit 😮‍💨 Come back after midnight UTC and I'll be fully loaded again innit 🕛"
+        return _quota_reset_message()
 
     all_429 = True
     for or_model in clean_available:
@@ -1389,7 +1416,7 @@ async def _call_ai_async(messages, max_tokens=400, temperature=0.8):
         brain.mark_openrouter_key_exhausted(current_key)
         # Check if any model is truly exhausted across all keys
         if not [m for m in _CLEAN_MODELS if not brain.is_model_quota_exhausted(m)]:
-            return "Yo, I've hit my daily AI limit 😮‍💨 Come back after midnight UTC and I'll be fully loaded again innit 🕛"
+            return _quota_reset_message()
         # Still have keys left — tell user to try again (next request will use next key)
         return "Having a blip reaching my AI — try again in a sec yeah 🔄"
 
@@ -2514,7 +2541,7 @@ async def _answer_with_ai_inner(message, stripped_content):
         reply = (reply or "I'm drawing a blank for a sec. Try that again, yeah?")
         # Validate reply — regenerate on system errors, empty replies, image errors, or leaked fragments
         # But never regen the quota message — it's intentional
-        _QUOTA_MSG = "daily AI limit"
+        _QUOTA_MSG = "daily AI limit"  # substring present in _quota_reset_message()
         sane, reason = _is_reply_sane(user_message, reply)
         if (_QUOTA_MSG not in reply) and (not sane or _looks_like_fragment(reply)):
             safe_prompt = user_message + "\n\n[IMPORTANT: Reply directly and naturally. Output ONLY your actual reply, nothing else.]"
