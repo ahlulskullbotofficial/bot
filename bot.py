@@ -133,35 +133,33 @@ _EMOTION_TRIGGERS = {
 class BotBrain:
     def __init__(self):
         # --- Service health ---
-        # Default ollama_alive to False if we have cloud AI keys (likely running on server)
-        self.ollama_alive      = not bool(os.environ.get("OPENROUTER_API_KEY"))
+        # Gemini is primary; Ollama only relevant locally
+        self.ollama_alive      = not bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"))
         self.elevenlabs_alive  = True   # set by TTS on quota error
+        self.gemini_quota_hit  = False  # True when Gemini daily quota is exhausted
 
         # --- Active conversation state per user ---
-        # {user_id: {"topic": str, "mood": str, "last_seen": datetime, "pending_voice": bool}}
+        # {user_id: {"topic": str, "mood": str, "last_seen": datetime, "last_channel": int}}
         self.user_state: dict = {}
 
-        # --- System event log (rolling, last 200 entries) ---
-        # Each entry: {"ts": iso, "system": str, "event": str, "user_id": int|None}
+        # --- System event log (rolling, last 50 entries — lightweight) ---
         self.event_log: list = []
 
         # --- Fix history: rolling log of auto-patches applied ---
-        # Each entry: {"ts": iso, "label": str, "patched": bool}
         self.fix_history: list = []
 
         # --- Pending issues that need resolution ---
         self.known_issues: list = []
 
         # --- Vision model cache ---
-        self.vision_model: str = ""  # set once Ollama is available
+        self.vision_model: str = ""
 
-        # --- Request counters (kept for stats display) ---
+        # --- Request counters ---
         self.openrouter_request_count: int = 0
-        self.openrouter_fail_reset_date: str = ""  # date string for daily reset
-        self.openrouter_quota_exhausted_models: set = set()  # models that 429'd on all keys today
+        self.openrouter_fail_reset_date: str = ""
+        self.openrouter_quota_exhausted_models: set = set()
 
         # --- OpenRouter key rotation ---
-        # Load all available keys; rotate to next when one hits its 429 daily limit
         self.openrouter_keys: list = [k for k in [
             os.environ.get("OPENROUTER_API_KEY", ""),
             os.environ.get("OPENROUTER_API_KEY_2", ""),
@@ -178,29 +176,35 @@ class BotBrain:
             os.environ.get("OPENROUTER_API_KEY_13", ""),
         ] if k]
         self.openrouter_key_index: int = 0
-        self.openrouter_exhausted_keys: set = set()  # keys that returned 429 on ALL models today
+        self.openrouter_exhausted_keys: set = set()
 
         # --- OpenRouter model performance tracking ---
-        self.openrouter_last_good_model: str = ""  # model that worked last time
-        self.openrouter_fail_counts: dict = {}      # {model: consecutive_failures}
+        self.openrouter_last_good_model: str = ""
+        self.openrouter_fail_counts: dict = {}
 
         # --- Web search cache ---
-        # {query_hash: (result_str, timestamp)}
         self.search_cache: dict = {}
         self.search_cache_ttl: int = 300  # 5 minutes
 
-        # --- Alert tracking ---
-        self.alerted: set = set()   # set of alert IDs already sent (prevents repeat DMs)
+        # --- Alert tracking (prevents repeat DMs) ---
+        self.alerted: set = set()
+
+    def _reset_daily_counts_if_needed(self):
+        """Reset per-model failure counts at the start of each new day."""
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if self.openrouter_fail_reset_date != today:
+            self.openrouter_fail_counts.clear()
+            self.openrouter_quota_exhausted_models.clear()
+            self.openrouter_fail_reset_date = today
 
     def log_event(self, system: str, event: str, user_id=None):
-        entry = {
-            "ts": datetime.now(timezone.utc).isoformat(),
+        self.event_log.append({
+            "ts": datetime.now(timezone.utc).strftime("%H:%M"),
             "system": system,
             "event": event,
             "user_id": user_id,
-        }
-        self.event_log.append(entry)
-        if len(self.event_log) > 200:
+        })
+        if len(self.event_log) > 50:
             self.event_log.pop(0)
 
     def get_user_state(self, user_id: int) -> dict:
@@ -211,6 +215,7 @@ class BotBrain:
                 "last_seen": datetime.now(timezone.utc),
                 "pending_voice": False,
                 "message_count": 0,
+                "last_channel": 0,
             }
         return self.user_state[user_id]
 
@@ -220,11 +225,16 @@ class BotBrain:
         state["last_seen"] = datetime.now(timezone.utc)
         state["message_count"] = state.get("message_count", 0) + 1
 
+    def track_user_channel(self, user_id: int, channel_id: int):
+        """Remember which channel a user last spoke in."""
+        state = self.get_user_state(user_id)
+        state["last_channel"] = channel_id
+
     def system_status(self) -> str:
         """Human-readable status string injected into AI context."""
         parts = []
-        if not self.ollama_alive:
-            parts.append("Ollama offline (using OpenRouter for all AI)")
+        if self.gemini_quota_hit:
+            parts.append("Gemini daily quota hit (using OpenRouter fallback)")
         if not self.elevenlabs_alive:
             parts.append("ElevenLabs quota exhausted (using edge-tts)")
         return "; ".join(parts) if parts else "All systems nominal"
@@ -249,36 +259,37 @@ class BotBrain:
     def mark_openrouter_key_exhausted(self, key: str):
         """Called when a key gets 429 on every model — rotate to the next key."""
         if key in self.openrouter_exhausted_keys:
-            return  # already marked, don't double-count
+            return
         self.openrouter_exhausted_keys.add(key)
         live = [k for k in self.openrouter_keys if k not in self.openrouter_exhausted_keys]
         if live:
-            # Keep index pointing at the next live key
             self.openrouter_key_index = self.openrouter_key_index % len(live)
             print(f"[Brain] OpenRouter key exhausted — rotating to key[{self.openrouter_key_index}] ({len(live)} key(s) remaining)", flush=True)
             self.resolve_issue("OpenRouter quota")
         else:
             self.openrouter_key_index = 0
-            print("[Brain] ALL OpenRouter keys exhausted for today — bot cannot reply until quota resets", flush=True)
+            print("[Brain] ALL OpenRouter keys exhausted for today", flush=True)
             self.add_known_issue("All OpenRouter keys at daily limit — quota resets at midnight UTC")
 
     def reset_openrouter_keys(self):
-        """Called at midnight UTC to clear exhausted keys for the new day."""
+        """Called at midnight UTC to clear all quota tracking for the new day."""
         self.openrouter_exhausted_keys.clear()
         self.openrouter_fail_counts.clear()
         self.openrouter_quota_exhausted_models.clear()
         self.openrouter_key_index = 0
+        self.openrouter_fail_reset_date = ""  # force reset on next call
+        self.gemini_quota_hit = False
         self.resolve_issue("OpenRouter quota")
-        print("[Brain] OpenRouter daily quota reset — all keys re-enabled", flush=True)
+        self.resolve_issue("Gemini daily quota")
+        print("[Brain] Daily quota reset — Gemini and OpenRouter re-enabled", flush=True)
 
     def record_fix(self, label: str, patched: bool):
         """Log an autofix attempt so !botstatus can show what was repaired."""
-        entry = {
+        self.fix_history.append({
             "ts": datetime.now(timezone.utc).strftime("%H:%M UTC"),
             "label": label,
             "patched": patched,
-        }
-        self.fix_history.append(entry)
+        })
         if len(self.fix_history) > 20:
             self.fix_history.pop(0)
         if patched:
@@ -286,107 +297,80 @@ class BotBrain:
 
     def get_cached_search(self, query: str):
         """Return cached search result if fresh, else None."""
-        import time, hashlib
+        import time as _time
         key = hashlib.md5(query.lower().encode()).hexdigest()
         if key in self.search_cache:
             result, ts = self.search_cache[key]
-            if time.time() - ts < self.search_cache_ttl:
+            if _time.time() - ts < self.search_cache_ttl:
                 return result
             del self.search_cache[key]
         return None
 
     def cache_search(self, query: str, result: str):
-        """Cache a search result."""
-        import time, hashlib
+        """Cache a search result with TTL."""
+        import time as _time
         key = hashlib.md5(query.lower().encode()).hexdigest()
-        self.search_cache[key] = (result, time.time())
-        # Prune cache if too large
+        self.search_cache[key] = (result, _time.time())
         if len(self.search_cache) > 100:
             oldest = sorted(self.search_cache.items(), key=lambda x: x[1][1])[:20]
             for k, _ in oldest:
                 del self.search_cache[k]
 
     def record_openrouter_success(self, model: str):
-        """Remember which OpenRouter model worked."""
         self.openrouter_last_good_model = model
         self.openrouter_fail_counts[model] = 0
 
     def record_openrouter_failure(self, model: str):
-        """Track general failures (timeouts, errors) — resets daily."""
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        if self.openrouter_fail_reset_date != today:
-            self.openrouter_fail_counts.clear()
-            self.openrouter_quota_exhausted_models.clear()
-            self.openrouter_fail_reset_date = today
+        """Track general failures (timeouts, errors)."""
+        self._reset_daily_counts_if_needed()
         self.openrouter_fail_counts[model] = self.openrouter_fail_counts.get(model, 0) + 1
 
     def record_openrouter_quota_hit(self, model: str, key: str):
-        """Track a 429 quota hit per (model, key) pair.
-        Only marks a model exhausted when EVERY key has returned 429 for it."""
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        if self.openrouter_fail_reset_date != today:
-            self.openrouter_fail_counts.clear()
-            self.openrouter_quota_exhausted_models.clear()
-            self.openrouter_fail_reset_date = today
-        # Track which specific keys have 429'd for this model
+        """Track a 429 quota hit per (model, key) — exhaust model when all keys have 429'd it."""
+        self._reset_daily_counts_if_needed()
         key_set = self.openrouter_fail_counts.get(f"429_keys_{model}", set())
         key_set.add(key)
         self.openrouter_fail_counts[f"429_keys_{model}"] = key_set
-        # Only exhaust model when every available key has returned 429
         all_keys = set(self.openrouter_keys) if self.openrouter_keys else {key}
         if all_keys and key_set >= all_keys:
             self.openrouter_quota_exhausted_models.add(model)
             print(f"[Brain] Model quota exhausted on all keys: {model}", flush=True)
 
     def is_model_quota_exhausted(self, model: str) -> bool:
-        """Return True if this model has hit 429 on all available keys today."""
         return model in self.openrouter_quota_exhausted_models
 
     def best_openrouter_order(self, models: list) -> list:
-        """Return models sorted: non-reasoning models first, then last-known-good, then by fewest failures.
-        Nemotron (reasoning/leaky) is always deprioritised below gemma and other clean models."""
-        _LEAKY_MODELS = {"nvidia/nemotron-3.5-lightning:free", "nvidia/nemotron-3-super-120b-a12b:free"}
+        """Sort models: last-known-good first, then by fewest failures."""
         def score(m):
-            if m in _LEAKY_MODELS:
-                return 1000  # always last
             if m == self.openrouter_last_good_model:
-                return -1   # best among non-leaky
+                return -1
             return self.openrouter_fail_counts.get(m, 0)
         return sorted(models, key=score)
 
     def detect_mood(self, text: str) -> str:
-        """Simple sentiment detection — updates user mood without any AI call."""
-        text_lower = text.lower()
-        if any(w in text_lower for w in ["sad", "depressed", "cry", "grief", "hurt", "pain", "inna lillahi"]):
+        """Detect user mood from message — covers English and common Arabic/Islamic expressions."""
+        t = text.lower()
+        if any(w in t for w in ["sad", "depressed", "cry", "grief", "hurt", "pain",
+                                  "inna lillahi", "stressed", "upset", "miss", "lonely",
+                                  "wallahi im down", "not okay"]):
             return "sad"
-        if any(w in text_lower for w in ["happy", "excited", "love", "great", "amazing", "alhamdulillah", "mashallah"]):
+        if any(w in t for w in ["happy", "excited", "love", "great", "amazing",
+                                  "alhamdulillah", "mashallah", "subhanallah", "blessed",
+                                  "lets go", "hyped", "fire", "banger"]):
             return "positive"
-        if any(w in text_lower for w in ["angry", "mad", "furious", "hate", "stupid", "shut up", "idiot"]):
+        if any(w in t for w in ["angry", "mad", "furious", "hate", "stupid",
+                                  "shut up", "idiot", "annoying", "wallahi im done",
+                                  "bruh", "mans vexed", "ngl im heated"]):
             return "frustrated"
-        if any(w in text_lower for w in ["lol", "haha", "😂", "💀", "funny", "joke"]):
+        if any(w in t for w in ["lol", "haha", "😂", "💀", "funny", "joke",
+                                  "dead 💀", "bro 💀", "lmao", "looool", "ngl that's jokes"]):
             return "playful"
         return "neutral"
 
-    def get_user_reply_style(self, user_id: int) -> str:
-        """Return a hint about how to reply to this user based on their history."""
-        state = self.get_user_state(user_id)
-        count = state.get("message_count", 0)
-        hints = []
-        if count > 50:
-            hints.append("long-time active member")
-        avg_len = state.get("avg_msg_len", 0)
-        if avg_len > 0 and avg_len < 20:
-            hints.append("prefers very short replies")
-        elif avg_len > 100:
-            hints.append("comfortable with detailed replies")
-        return ", ".join(hints) if hints else ""
-
     def update_message_stats(self, user_id: int, message_len: int):
-        """Update rolling average message length for a user."""
+        """Update rolling average message length — used to detect user verbosity preference."""
         state = self.get_user_state(user_id)
         prev_avg = state.get("avg_msg_len", 0)
-        count = state.get("message_count", 1)
-        # Exponential moving average
         state["avg_msg_len"] = (prev_avg * 0.9 + message_len * 0.1) if prev_avg else message_len
 
 
@@ -1291,6 +1275,8 @@ async def _call_gemini_async(messages, max_tokens=400, temperature=0.8):
                             return result
                     elif resp.status == 429:
                         print(f"[AI] Gemini 429: daily quota hit", flush=True)
+                        brain.gemini_quota_hit = True
+                        brain.add_known_issue("Gemini daily quota hit")
                         return "QUOTA"
                     elif resp.status == 404:
                         print(f"[AI] Gemini 404 ({model}): not available, trying next...", flush=True)
@@ -2334,10 +2320,11 @@ async def answer_with_ai(message):
     except Exception:
         print("[Reply] Incoming message (could not print display name)")
 
-    # Update brain user state + detect mood
+    # Update brain user state + detect mood + track channel
     detected_mood = brain.detect_mood(stripped_content)
     brain.update_user_state(message.author.id, pending_voice=False, mood=detected_mood)
     brain.update_message_stats(message.author.id, len(stripped_content))
+    brain.track_user_channel(message.author.id, message.channel.id)
     brain.log_event("reply", "incoming", user_id=message.author.id)
     # Update topic based on message content (keyword extraction)
     if len(stripped_content) > 15:
