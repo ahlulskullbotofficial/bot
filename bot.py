@@ -1230,32 +1230,18 @@ def _call_ai(messages, max_tokens=400, temperature=0.8):
 
 
 def _quota_reset_message() -> str:
-    """Build a friendly quota message showing the exact reset time in multiple timezones."""
+    """Build a friendly quota message using Discord's native timestamp (auto-localises per user)."""
     now = datetime.now(timezone.utc)
     # Reset is always at midnight UTC
     tomorrow_midnight_utc = (now + timedelta(days=1)).replace(
         hour=0, minute=0, second=0, microsecond=0
     )
-    hours_left = int((tomorrow_midnight_utc - now).total_seconds() // 3600)
-    mins_left = int(((tomorrow_midnight_utc - now).total_seconds() % 3600) // 60)
-    time_left = f"{hours_left}h {mins_left}m" if hours_left > 0 else f"{mins_left}m"
-
-    # Key timezones for the server's likely audience
-    zones = [
-        ("🇬🇧 London",  0 if (now.month < 3 or now.month > 10) else 1),   # GMT/BST approx
-        ("🇩🇿 Algiers", 1),    # CET always
-        ("🇸🇦 Riyadh",  3),    # AST always
-        ("🇺🇸 New York", -5 if (now.month < 3 or now.month > 11) else -4),  # EST/EDT approx
-    ]
-    zone_lines = []
-    for label, offset in zones:
-        reset_local = tomorrow_midnight_utc + timedelta(hours=offset)
-        zone_lines.append(f"{label}: **{reset_local.strftime('%H:%M')}**")
-
+    unix_ts = int(tomorrow_midnight_utc.timestamp())
+    # <t:UNIX:R> = relative ("in 3 hours"), <t:UNIX:t> = short time ("00:00")
+    # Discord renders both in the user's own timezone automatically
     return (
         f"Yo, I've hit my daily AI limit 😮‍💨\n"
-        f"I'll be back in **{time_left}** — reset times:\n"
-        + "\n".join(zone_lines)
+        f"I'll be back <t:{unix_ts}:R> (resets at <t:{unix_ts}:t> your time) innit 🕛"
     )
     """
     Call Google Gemini API. Tries GEMINI_FALLBACK_MODELS in order until one works.
