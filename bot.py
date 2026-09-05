@@ -1243,6 +1243,8 @@ def _quota_reset_message() -> str:
         f"Yo, I've hit my daily AI limit 😮‍💨\n"
         f"I'll be back <t:{unix_ts}:R> (resets at <t:{unix_ts}:t> your time) innit 🕛"
     )
+
+    async def _call_gemini_async(messages, max_tokens=400, temperature=0.8):
     """
     Call Google Gemini API. Tries GEMINI_FALLBACK_MODELS in order until one works.
     Returns: reply string on success, "QUOTA" on 429, None on hard error.
