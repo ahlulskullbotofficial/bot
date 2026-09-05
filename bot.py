@@ -2742,10 +2742,7 @@ async def openrouter_quota_reset_check():
     """Every hour check if it's past midnight UTC — reset all quota tracking for the new day."""
     now_utc = datetime.now(timezone.utc)
     if now_utc.hour == 0:
-        brain.reset_openrouter_keys()
-        # Also reset Gemini quota flag so bot retries Gemini after midnight
-        brain.resolve_issue("Gemini daily quota hit")
-        print("[Brain] Daily quota reset — Gemini and OpenRouter re-enabled", flush=True)
+        brain.reset_openrouter_keys()  # handles Gemini + OpenRouter + fail counts
 
 
 @tasks.loop(minutes=5)
@@ -2861,9 +2858,9 @@ async def botstatus(ctx):
     """Show brain health: AI services, quota, known issues, recent fixes."""
     lines = [
         f"**System status:** {brain.system_status()}",
+        f"**Gemini:** {'quota hit 😮‍💨' if brain.gemini_quota_hit else 'online ✅'}",
         f"**OpenRouter keys:** {len(brain.openrouter_keys)} loaded, {len(brain.openrouter_exhausted_keys)} exhausted today",
-        f"**Best OpenRouter model:** {brain.openrouter_last_good_model or 'not determined yet'}",
-        f"**Ollama:** {'online' if brain.ollama_alive else 'offline'}",
+        f"**Best OpenRouter model:** {brain.openrouter_last_good_model or 'not tried yet'}",
         f"**ElevenLabs:** {'online' if brain.elevenlabs_alive else 'quota exhausted'}",
         f"**Search cache entries:** {len(brain.search_cache)}",
     ]
